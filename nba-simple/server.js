@@ -42,7 +42,7 @@ function bdlGet(path, params = {}) {
   return axios.get(`https://api.balldontlie.io/v1${path}`, {
     params,
     headers: { Authorization: BALLDONTLIE_KEY },
-    timeout: 12000,
+    timeout: 15000,
   });
 }
 
@@ -81,8 +81,8 @@ async function careerStatsBDL(playerId) {
 
   const allSeasons = [];
   let consecutiveEmpty = 0;
-  for (let i = 0; i < years.length; i += 8) {
-    const batch = years.slice(i, i + 8);
+  for (let i = 0; i < years.length; i += 5) {
+    const batch = years.slice(i, i + 5);
     const results = await Promise.all(
       batch.map(year =>
         bdlGet('/season_averages', { season: year, 'player_ids[]': playerId })
@@ -99,6 +99,8 @@ async function careerStatsBDL(playerId) {
     } else {
       consecutiveEmpty = 0;
     }
+    // Small pause between batches to avoid rate limit bursts
+    if (i + 5 < years.length) await new Promise(r => setTimeout(r, 300));
   }
 
   return allSeasons
@@ -217,6 +219,7 @@ app.get('/api/career/:playerId', async (req, res) => {
       const seasons = await cached(`bdl-career-${playerId}`, 24 * 3600 * 1000, () => careerStatsBDL(playerId));
       return res.json(seasons);
     } catch (e) {
+      console.error('BDL career error:', e?.response?.status, e?.message);
       return res.status(500).json({ error: 'Failed to fetch career stats' });
     }
   }
