@@ -55,7 +55,7 @@ function parseBdlMin(minStr) {
 async function searchPlayersBDL(q) {
   const words = q.trim().split(/\s+/);
   // Search by first word so "Michael J" searches "Michael" and filters to matches
-  const r = await bdlGet('/players', { search: words[0], per_page: 100 });
+  const r = await bdlGet('/players', { search: words[0], per_page: 25 });
   let players = r.data.data;
   if (words.length > 1) {
     players = players.filter(p => {
