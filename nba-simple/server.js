@@ -240,8 +240,11 @@ app.get('/api/career/:playerId', async (req, res) => {
           await new Promise(res => setTimeout(res, 2000));
         }
       }
+      const rsNames = r.data.resultSets.map(x => x.name);
+      console.log('Career API result sets:', rsNames);
       const rs = r.data.resultSets.find(x => x.name === 'SeasonTotalsRegularSeason');
-      if (!rs) return [];
+      if (!rs) { console.log('SeasonTotalsRegularSeason not found'); return []; }
+      console.log('Career rows:', rs.rowSet.length);
       const h = rs.headers;
       const get = (row, key) => row[h.indexOf(key)];
       return rs.rowSet.map(row => ({
