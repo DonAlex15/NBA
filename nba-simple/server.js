@@ -53,8 +53,17 @@ function parseBdlMin(minStr) {
 }
 
 async function searchPlayersBDL(q) {
-  const r = await bdlGet('/players', { search: q, per_page: 10 });
-  return r.data.data.map(p => ({
+  const words = q.trim().split(/\s+/);
+  // Search by first word so "Michael J" searches "Michael" and filters to matches
+  const r = await bdlGet('/players', { search: words[0], per_page: 50 });
+  let players = r.data.data;
+  if (words.length > 1) {
+    players = players.filter(p => {
+      const full = `${p.first_name} ${p.last_name}`.toLowerCase();
+      return words.every(w => full.includes(w.toLowerCase()));
+    });
+  }
+  return players.slice(0, 10).map(p => ({
     id: p.id,
     name: `${p.first_name} ${p.last_name}`,
     team: p.team?.abbreviation || '',
