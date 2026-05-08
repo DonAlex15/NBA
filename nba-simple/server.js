@@ -1,6 +1,24 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
+
+// Player birthdate lookup: { "LeBron James": "1984-12-30", ... }
+const PLAYER_META = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'playerMeta.json'), 'utf8')); }
+  catch { return {}; }
+})();
+
+// Age as of Feb 1 of the season (NBA convention: e.g. "2003-04" → Feb 1 2004)
+function ageForSeason(season, birthDate) {
+  if (!birthDate) return null;
+  const startYear = parseInt(season.split('-')[0]);
+  const feb1 = new Date(startYear + 1, 1, 1);
+  const birth = new Date(birthDate);
+  const age = feb1.getFullYear() - birth.getFullYear();
+  const hadBirthday = feb1 >= new Date(feb1.getFullYear(), birth.getMonth(), birth.getDate());
+  return hadBirthday ? age : age - 1;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -112,7 +130,8 @@ async function buildPlayerList() {
 }
 
 // Fetch career season-by-season stats from ESPN
-async function buildCareerStats(espnId, debutYear) {
+async function buildCareerStats(espnId, debutYear, playerName) {
+  const birthDate = playerName ? PLAYER_META[playerName] : null;
   const curEspnYear = seasonToEspnStatsYear(currentSeason());
   // ESPN stats year = ending year of season; debutYear 2003 → first ESPN year = 2004
   const startYear = debutYear ? debutYear + 1 : 2002;
@@ -137,7 +156,7 @@ async function buildCareerStats(espnId, debutYear) {
               season:   seasonStr,
               team:     '',
               team_id:  null,
-              age:      null,
+              age:      ageForSeason(seasonStr, birthDate),
               gp,
               gs:       m.gamesStarted                       || 0,
               min:      +(m.avgMinutes                       || 0).toFixed(1),
@@ -207,7 +226,7 @@ app.get('/api/career/:playerId', async (req, res) => {
     const seasons = await cached(
       `career-${playerId}`,
       24 * 3600 * 1000,
-      () => buildCareerStats(playerId, debutYear)
+      () => buildCareerStats(playerId, debutYear, player?.name)
     );
     res.json(seasons);
   } catch (e) {
@@ -383,6 +402,7 @@ app.get('/api/mlb/career/pitching/:playerId', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`NBA Stats app running at http://localhost:${PORT}`);
+  console.log(`playerMeta loaded: ${Object.keys(PLAYER_META).length} birthdates`);
   // Pre-warm player cache in background
   cached('all-players', 24 * 3600 * 1000, buildPlayerList).catch(e =>
     console.error('Player cache warmup failed:', e.message)
