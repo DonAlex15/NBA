@@ -172,6 +172,7 @@ app.get('/api/players', async (req, res) => {
       : [];
     res.json(results);
   } catch (e) {
+    console.error('NBA players error:', e?.response?.status, e?.message);
     res.status(500).json({ error: 'Failed to fetch players' });
   }
 });
@@ -273,6 +274,7 @@ app.get('/api/career/:playerId', async (req, res) => {
     });
     res.json(seasons);
   } catch (e) {
+    console.error('NBA career error:', e?.response?.status, e?.message);
     res.status(500).json({ error: 'Failed to fetch career stats' });
   }
 });
