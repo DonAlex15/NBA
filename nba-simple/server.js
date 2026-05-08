@@ -5,6 +5,8 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || 'd316ecfc6813e11b0cf142000b43f5bd';
+
 const NBA_HEADERS = {
   'Accept': 'application/json, text/plain, */*',
   'Accept-Language': 'en-US,en;q=0.9',
@@ -20,6 +22,17 @@ const NBA_HEADERS = {
   'Sec-Fetch-Site': 'same-site',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 };
+
+function nbaGet(endpoint, params) {
+  const url = `https://stats.nba.com/stats/${endpoint}`;
+  const qs = new URLSearchParams(params).toString();
+  const target = `${url}?${qs}`;
+  return axios.get('https://api.scraperapi.com', {
+    params: { api_key: SCRAPER_API_KEY, url: target, keep_headers: 'true' },
+    headers: NBA_HEADERS,
+    timeout: 60000,
+  });
+}
 
 // Simple in-memory cache
 const cache = new Map();
@@ -153,11 +166,7 @@ app.get('/api/players', async (req, res) => {
   }
   try {
     const players = await cached('all-players', 24 * 3600 * 1000, async () => {
-      const r = await axios.get('https://stats.nba.com/stats/commonallplayers', {
-        params: { LeagueID: '00', Season: currentSeason(), IsOnlyCurrentSeason: 0 },
-        headers: NBA_HEADERS,
-        timeout: 15000,
-      });
+      const r = await nbaGet('commonallplayers', { LeagueID: '00', Season: currentSeason(), IsOnlyCurrentSeason: 0 });
       const rs = r.data.resultSets.find(x => x.name === 'CommonAllPlayers');
       return rs.rowSet.map(row => ({
         id: row[0],
@@ -229,11 +238,7 @@ app.get('/api/career/:playerId', async (req, res) => {
       let r;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          r = await axios.get('https://stats.nba.com/stats/playercareerstats', {
-            params: { PlayerID: playerId, PerMode: 'PerGame', LeagueID: '00' },
-            headers: NBA_HEADERS,
-            timeout: 20000,
-          });
+          r = await nbaGet('playercareerstats', { PlayerID: playerId, PerMode: 'PerGame', LeagueID: '00' });
           break;
         } catch (err) {
           if (attempt === 1) throw err;
@@ -288,11 +293,7 @@ app.get('/api/standings/:season', async (req, res) => {
   const ttl = season === currentSeason() ? 3600 * 1000 : 7 * 24 * 3600 * 1000;
   try {
     const data = await cached(`standings-${season}`, ttl, async () => {
-      const r = await axios.get('https://stats.nba.com/stats/leaguestandingsv3', {
-        params: { LeagueID: '00', Season: season, SeasonType: 'Regular Season' },
-        headers: NBA_HEADERS,
-        timeout: 15000,
-      });
+      const r = await nbaGet('leaguestandingsv3', { LeagueID: '00', Season: season, SeasonType: 'Regular Season' });
       const rs = r.data.resultSets.find(x => x.name === 'Standings');
       if (!rs) return {};
       const h = rs.headers;
