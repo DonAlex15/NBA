@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Who's The Best?</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* App shell */
+    .app-shell { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: #060e1c;
+      border-right: 1px solid #1a2540;
+      display: flex; flex-direction: column;
+      padding: 0;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 12px;
+      padding: 24px 20px 22px;
+      border-bottom: 1px solid #1a2540;
+      margin-bottom: 12px;
+    }
+    .brand-icon { font-size: 1.6rem; flex-shrink: 0; }
+    .brand-text { font-size: 0.78rem; font-weight: 700; color: #64748b; line-height: 1.4; text-transform: uppercase; letter-spacing: 0.06em; }
+    .nav-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 20px;
+      color: #475569; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; border-left: 3px solid transparent;
+      transition: background 0.15s, color 0.15s;
+      text-decoration: none; user-select: none;
+    }
+    .nav-link:hover { background: #0d1a2e; color: #94a3b8; }
+    .nav-link.active { color: #f1f5f9; background: #0d1a2e; border-left-color: #3b82f6; }
+    .nav-icon { font-size: 1.1rem; }
+    .nav-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: #1e293b; color: #475569; border-radius: 4px; padding: 2px 5px; margin-left: auto; }
+
+    /* Content */
+    .content { margin-left: 220px; flex: 1; padding: 48px 24px 60px; }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    .page { max-width: 900px; margin: 0 auto; }
+
+    /* Home page */
+    .home-hero { text-align: center; padding: 48px 20px 56px; max-width: 680px; margin: 0 auto; }
+    .home-trophy { font-size: 4rem; margin-bottom: 20px; line-height: 1; }
+    .home-title { font-size: 3rem; font-weight: 800; color: #f1f5f9; margin-bottom: 14px; letter-spacing: -0.03em; }
+    .home-sub { font-size: 1rem; color: #64748b; line-height: 1.7; max-width: 460px; margin: 0 auto 52px; }
+    .sport-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 560px; margin: 0 auto; }
+    .sport-card {
+      background: #1e293b; border: 1.5px solid #334155; border-radius: 20px;
+      padding: 36px 24px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+    }
+    .sport-card:hover { border-color: #3b82f6; background: #172342; transform: translateY(-3px); }
+    .sport-card.disabled { cursor: default; opacity: 0.55; }
+    .sport-card.disabled:hover { border-color: #334155; background: #1e293b; transform: none; }
+    .sport-card-icon { font-size: 3.5rem; margin-bottom: 16px; line-height: 1; }
+    .sport-card-name { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; }
+    .sport-card-desc { font-size: 0.8rem; color: #64748b; line-height: 1.6; }
+    .sport-card-badge { display: inline-block; margin-top: 14px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; background: #0f172a; border: 1px solid #334155; color: #475569; }
+
+    /* Inline component weights inside analysis card */
+    .cwi-wrap { border-top: 1px solid #2d3f55; padding-top: 14px; margin-top: 14px; }
+    .cwi-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; margin-bottom: 10px; }
+    .cwi-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .cwi-lbl { font-size: 0.78rem; color: #94a3b8; width: 44px; flex-shrink: 0; }
+    .cwi-val { font-size: 0.78rem; color: #e2e8f0; font-weight: 600; width: 34px; text-align: right; flex-shrink: 0; }
+    .cwi-note { font-size: 0.65rem; color: #334155; margin-top: 6px; }
+
+    /* Coming soon page */
+    .cs-wrap { text-align: center; max-width: 480px; margin: 80px auto; }
+    .cs-icon { font-size: 5rem; margin-bottom: 28px; line-height: 1; }
+    .cs-title { font-size: 2.2rem; font-weight: 800; color: #f1f5f9; margin-bottom: 16px; letter-spacing: -0.02em; }
+    .cs-sub { color: #64748b; font-size: 0.95rem; line-height: 1.8; margin-bottom: 28px; }
+    .cs-features { list-style: none; text-align: left; display: inline-block; margin-bottom: 32px; }
+    .cs-features li { color: #475569; font-size: 0.85rem; padding: 4px 0; }
+    .cs-features li::before { content: '— '; color: #334155; }
+    .cs-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 20px; border-radius: 20px; background: #1e293b; border: 1.5px solid #334155; color: #64748b; }
+
+    @media (max-width: 700px) {
+      .sidebar { width: 100%; height: 54px; flex-direction: row; bottom: auto; border-right: none; border-bottom: 1px solid #1a2540; padding: 0; align-items: stretch; }
+      .sidebar-brand { padding: 0 16px; border-bottom: none; border-right: 1px solid #1a2540; margin-bottom: 0; align-items: center; }
+      .brand-text { display: none; }
+      .nav-link { flex: 1; justify-content: center; padding: 0 8px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.75rem; flex-direction: column; gap: 2px; height: 54px; }
+      .nav-link.active { border-left-color: transparent; border-bottom-color: #3b82f6; }
+      .nav-badge { display: none; }
+      .content { margin-left: 0; margin-top: 54px; padding: 24px 12px 40px; }
+      .sport-cards { grid-template-columns: 1fr; max-width: 320px; }
+      .settings-inner { grid-template-columns: 1fr; }
+    }
+
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+    p.sub { color: #94a3b8; margin-bottom: 40px; font-size: 0.95rem; }
+
+    /* Search row */
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 36px;
+    }
+    .vs-label { text-align: center; color: #475569; font-weight: 700; font-size: 0.9rem; padding-top: 28px; }
+    .search-wrap { position: relative; }
+    .player-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 6px; }
+    input[type=text] {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 0.95rem;
+      border-radius: 10px;
+      border: 1.5px solid #334155;
+      background: #1e293b;
+      color: #fff;
+      outline: none;
+    }
+    input[type=text]:focus { border-color: #3b82f6; }
+    input[type=text]::placeholder { color: #64748b; }
+    .selected-name { margin-top: 6px; font-size: 0.85rem; font-weight: 600; min-height: 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .slot-0 .selected-name { color: #60a5fa; }
+    .slot-1 .selected-name { color: #f472b6; }
+    .selected-name.name-winner { color: #4ade80 !important; }
+    .selected-name.name-loser  { color: #ef4444 !important; }
+    .player-badge { font-size: 0.75rem; font-weight: 700; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 2px 7px; color: #94a3b8; white-space: nowrap; }
+    .player-stats-line { margin-top: 5px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .player-stat-chip { font-size: 0.72rem; font-weight: 600; background: #0f172a; border: 1px solid #1e293b; border-radius: 5px; padding: 2px 7px; color: #64748b; white-space: nowrap; }
+    .player-stat-chip span { font-weight: 800; color: #94a3b8; }
+
+    .dropdown {
+      display: none; position: absolute;
+      top: calc(100% + 4px); left: 0; right: 0;
+      background: #1e293b; border: 1.5px solid #334155;
+      border-radius: 10px; overflow: hidden; z-index: 30;
+    }
+    .dropdown.open { display: block; }
+    .opt { padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #ffffff08; font-size: 0.88rem; }
+    .opt:last-child { border-bottom: none; }
+    .opt:hover { background: #273548; }
+    .opt-team { color: #64748b; font-size: 0.8rem; }
+
+    /* Table controls */
+    .table-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .table-title { font-size: 1.05rem; font-weight: 700; }
+    .controls-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .toggle-wrap { display: flex; gap: 0; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1.5px solid #334155; }
+    .toggle-btn {
+      padding: 7px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      border: none; background: transparent; color: #64748b; letter-spacing: 0.04em;
+    }
+    .toggle-btn.active { background: #3b82f6; color: #fff; }
+
+    select#stat-select {
+      padding: 7px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1.5px solid #334155;
+      background: #1e293b;
+      color: #94a3b8;
+      cursor: pointer;
+      outline: none;
+    }
+    select#stat-select:focus { border-color: #3b82f6; }
+
+    .legend { display: flex; gap: 16px; font-size: 0.78rem; color: #94a3b8; align-items: center; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-p1 { background: #3b82f6; }
+    .dot-p2 { background: #ec4899; }
+
+    /* Table */
+    #comparison { display: none; }
+    #comparison.show { display: block; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th {
+      background: #1e293b; padding: 10px 14px; text-align: right;
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #64748b; border-bottom: 2px solid #334155;
+    }
+    thead th:first-child { text-align: left; }
+    thead th.p1-head { color: #60a5fa; }
+    thead th.p2-head { color: #f472b6; }
+
+    tbody tr { border-bottom: 1px solid #1a2035; }
+    tbody tr:hover { background: #1a2744 !important; }
+    td { padding: 10px 14px; text-align: right; color: #94a3b8; }
+    td:first-child { text-align: left; color: #cbd5e1; font-weight: 500; }
+    .sub-info { font-size: 0.75rem; color: #475569; }
+    .stat-context { font-size: 0.72rem; color: #64748b; }
+
+    td.ppg { font-weight: 700; font-size: 0.95rem; }
+    td.ppg-p1 { color: #60a5fa; }
+    td.ppg-p2 { color: #f472b6; }
+    td.winner { color: #4ade80 !important; }
+    td.loser  { color: #ef4444 !important; }
+    tr.row-win-p1 { background: #0a2018; }
+    tr.row-win-p2 { background: #20080f; }
+
+    td.diff { font-weight: 600; }
+    td.diff-p1   { color: #4ade80; }
+    td.diff-p2   { color: #ef4444; }
+    td.diff-zero { color: #334155; }
+    td.no-data { color: #2d3f55; font-size: 0.8rem; }
+
+    .loading-msg { text-align: center; color: #64748b; padding: 40px; }
+
+    /* Settings panel */
+    #settings-wrap { display: none; margin-top: 12px; margin-bottom: 12px; }
+    #settings-wrap.show { display: block; }
+    .settings-btn {
+      background: none; border: 1.5px solid #334155; border-radius: 8px;
+      color: #64748b; font-size: 0.8rem; font-weight: 600; padding: 8px 16px;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .settings-btn:hover { border-color: #475569; color: #94a3b8; }
+    #settings-panel { display: none; background: #1e293b; border-radius: 12px; padding: 20px 24px; border: 1px solid #334155; }
+    #settings-panel.open { display: block; }
+    .settings-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+    .settings-col-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 12px; }
+    .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .slider-lbl { font-size: 0.78rem; color: #94a3b8; width: 62px; flex-shrink: 0; }
+    .slider-lbl.neg { color: #f87171; }
+    input[type=range].sw { flex: 1; accent-color: #3b82f6; cursor: pointer; height: 4px; }
+    input[type=range].sw.neg-slider { accent-color: #f87171; }
+    .slider-val { font-size: 0.78rem; color: #e2e8f0; width: 38px; text-align: right; flex-shrink: 0; }
+    .comp-note { font-size: 0.68rem; color: #475569; margin-top: 10px; line-height: 1.6; }
+
+    /* Analysis card */
+    #analysis { display: none; margin-top: 24px; margin-bottom: 0; }
+    #analysis.show { display: block; }
+    .analysis-card { background: #1e293b; border-radius: 16px; padding: 24px 28px; border: 1px solid #334155; }
+    .verdict { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .analysis-expand-btn { font-size: 0.72rem; font-weight: 600; color: #64748b; background: none; border: 1.5px solid #334155; border-radius: 6px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+    .analysis-expand-btn:hover { border-color: #475569; color: #94a3b8; }
+    #analysis-detail, #mlb-analysis-detail { display: none; }
+    #analysis-detail.open, #mlb-analysis-detail.open { display: block; }
+    .verdict-name { color: #4ade80; }
+    .a-section { margin-bottom: 18px; }
+    .a-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 8px; }
+    .a-bar-wrap { display: flex; align-items: center; gap: 10px; }
+    .a-bar-name { font-size: 0.8rem; font-weight: 600; width: 80px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .a-bar-name.p1 { color: #60a5fa; text-align: right; }
+    .a-bar-name.p2 { color: #f472b6; }
+    .a-bar-track { flex: 1; height: 10px; background: #0f172a; border-radius: 5px; position: relative; overflow: hidden; }
+    .a-bar-p1 { position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg,#1d4ed8,#3b82f6); border-radius: 5px 0 0 5px; }
+    .a-bar-p2 { position: absolute; right: 0; top: 0; height: 100%; background: linear-gradient(90deg,#ec4899,#be185d); border-radius: 0 5px 5px 0; }
+    .a-bar-scores { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; margin-top: 4px; }
+    .a-bar-scores .s1 { color: #60a5fa; font-weight: 600; }
+    .a-bar-scores .s2 { color: #f472b6; font-weight: 600; }
+    .a-detail { color: #475569; font-size: 0.68rem; text-align: center; flex: 1; padding: 0 8px; }
+
+    @media (max-width: 540px) {
+      .search-row { grid-template-columns: 1fr; }
+      .vs-label { padding-top: 0; }
+      .table-controls { flex-direction: column; gap: 12px; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">🏆</span>
+      <span class="brand-text">Who's<br>The Best?</span>
+    </div>
+    <a class="nav-link active" data-page="home" onclick="navigate('home')">
+      <span class="nav-icon">🏠</span> Home
+    </a>
+    <a class="nav-link" data-page="basketball" onclick="navigate('basketball')">
+      <span class="nav-icon">🏀</span> Basketball
+    </a>
+    <a class="nav-link" data-page="baseball" onclick="navigate('baseball')">
+      <span class="nav-icon">⚾</span> Baseball
+    </a>
+  </nav>
+
+  <!-- Content -->
+  <main class="content">
+
+    <!-- Home page -->
+    <div id="page-home" class="page-section active">
+      <div class="home-hero">
+        <div class="home-trophy">🏆</div>
+        <h1 class="home-title">Who's The Best?</h1>
+        <p class="home-sub">Settle the debate with data. Compare legends across eras — stats, awards, championships — with a fully transparent, customizable scoring algorithm.</p>
+        <div class="sport-cards">
+          <div class="sport-card" onclick="navigate('basketball')">
+            <div class="sport-card-icon">🏀</div>
+            <div class="sport-card-name">Basketball</div>
+            <div class="sport-card-desc">Compare any two NBA players. Career stats by age, MVPs, championships, and a scoring algorithm you control.</div>
+          </div>
+          <div class="sport-card" onclick="navigate('baseball')">
+            <div class="sport-card-icon">⚾</div>
+            <div class="sport-card-name">Baseball</div>
+            <div class="sport-card-desc">Compare MLB legends across eras. Hitters vs pitchers, World Series rings, MVP and Cy Young awards.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Basketball page -->
+    <div id="page-basketball" class="page-section">
+      <div class="page">
+        <h1 style="text-align:center;">🏀 Who's The Best? 🏀</h1>
+        <p class="sub" style="text-align:center;">Compare two players' stats by age</p>
+
+  <div class="search-row">
+    <div class="slot-0">
+      <div class="player-label">Player 1</div>
+      <div class="search-wrap">
+        <input type="text" id="input-0" placeholder="Search player 1..." autocomplete="off" />
+        <div class="dropdown" id="dd-0"></div>
+      </div>
+      <div class="selected-name" id="sel-0"></div>
+      <div class="player-stats-line" id="stats-0"></div>
+    </div>
+    <div class="vs-label">VS</div>
+    <div class="slot-1">
+      <div class="player-label">Player 2</div>
+      <div class="search-wrap">
+        <input type="text" id="input-1" placeholder="Search player 2..." autocomplete="off" />
+        <div class="dropdown" id="dd-1"></div>
+      </div>
+      <div class="selected-name" id="sel-1"></div>
+      <div class="player-stats-line" id="stats-1"></div>
+    </div>
+  </div>
+
+  <div id="analysis"></div>
+
+  <div id="settings-wrap">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+    <button class="settings-btn" style="margin-bottom:0;" onclick="toggleSettings()">
+      <span id="settings-arrow">▶</span> Tune Stat Score
+    </button>
+    <button class="settings-btn" style="margin-bottom:0;" onclick="resetWeights()">↺ Reset to Defaults</button>
+    </div>
+    <div id="settings-panel">
+      <div class="settings-inner">
+        <div>
+          <div class="settings-col-title">Stat Composite Weights (0.5× – 2×)</div>
+          <div class="slider-row"><span class="slider-lbl">PTS</span><input type="range" class="sw" id="w-pts" min="0.5" max="2" step="0.1" value="1.5" oninput="updateWeights()"><span class="slider-val" id="v-pts">1.5×</span></div>
+          <div class="slider-row"><span class="slider-lbl">REB</span><input type="range" class="sw" id="w-reb" min="0.5" max="2" step="0.1" value="0.5" oninput="updateWeights()"><span class="slider-val" id="v-reb">0.5×</span></div>
+          <div class="slider-row"><span class="slider-lbl">AST</span><input type="range" class="sw" id="w-ast" min="0.5" max="2" step="0.1" value="1.0" oninput="updateWeights()"><span class="slider-val" id="v-ast">1.0×</span></div>
+          <div class="slider-row"><span class="slider-lbl">STL</span><input type="range" class="sw" id="w-stl" min="0.5" max="2" step="0.1" value="1.0" oninput="updateWeights()"><span class="slider-val" id="v-stl">1.0×</span></div>
+          <div class="slider-row"><span class="slider-lbl">BLK</span><input type="range" class="sw" id="w-blk" min="0.5" max="2" step="0.1" value="1.0" oninput="updateWeights()"><span class="slider-val" id="v-blk">1.0×</span></div>
+          <div class="slider-row"><span class="slider-lbl neg">TOV</span><input type="range" class="sw neg-slider" id="w-tov" min="0.5" max="2" step="0.1" value="0.5" oninput="updateWeights()"><span class="slider-val" id="v-tov">−0.5×</span></div>
+        </div>
+        <div>
+          <div class="settings-col-title">Stat Score Sub-Weights</div>
+          <div class="slider-row"><span class="slider-lbl">Career</span><input type="range" class="sw" id="w-career" min="0" max="100" step="5" value="70" oninput="adjustLinked(this.id,['w-career','w-peak','w-lon'])"><span class="slider-val" id="v-career">70%</span></div>
+          <div class="slider-row"><span class="slider-lbl">Peak</span><input type="range" class="sw" id="w-peak" min="0" max="100" step="5" value="20" oninput="adjustLinked(this.id,['w-career','w-peak','w-lon'])"><span class="slider-val" id="v-peak">20%</span></div>
+          <div class="slider-row"><span class="slider-lbl">Longevity</span><input type="range" class="sw" id="w-lon" min="0" max="100" step="5" value="10" oninput="adjustLinked(this.id,['w-career','w-peak','w-lon'])"><span class="slider-val" id="v-lon">10%</span></div>
+          <div class="comp-note">Career avg · top-5 peak · longevity blend. Always sums to 100%.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="comparison">
+    <div class="table-controls">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="table-title" id="table-title">By Age PTS</div>
+        <div class="legend">
+          <span id="legend-p1">Player 1</span>
+          <span style="color:#475569">vs</span>
+          <span id="legend-p2">Player 2</span>
+        </div>
+      </div>
+      <div class="controls-right">
+        <select id="stat-select" onchange="setStat(this.value)">
+          <option value="pts">PTS — Points</option>
+          <option value="reb">REB — Rebounds</option>
+          <option value="ast">AST — Assists</option>
+          <option value="stl">STL — Steals</option>
+          <option value="blk">BLK — Blocks</option>
+          <option value="tov">TOV — Turnovers</option>
+          <option value="min">MIN — Minutes</option>
+          <option value="gp">GP — Games Played</option>
+          <option value="gs">GS — Games Started</option>
+          <option value="oreb">OREB — Off Rebounds</option>
+          <option value="dreb">DREB — Def Rebounds</option>
+          <option value="fg_pct">FG% — Field Goal %</option>
+          <option value="fg3_pct">3P% — Three-Point %</option>
+          <option value="ft_pct">FT% — Free Throw %</option>
+          <option value="fgm">FGM — FG Made</option>
+          <option value="fga">FGA — FG Attempted</option>
+          <option value="fg3m">3PM — 3-Pt Made</option>
+          <option value="fg3a">3PA — 3-Pt Attempted</option>
+          <option value="ftm">FTM — FT Made</option>
+          <option value="fta">FTA — FT Attempted</option>
+          <option value="pf">PF — Personal Fouls</option>
+        </select>
+        <div class="toggle-wrap">
+          <button class="toggle-btn" id="btn-season" onclick="setView('season')">By Season</button>
+          <button class="toggle-btn active" id="btn-age" onclick="setView('age')">By Age</button>
+        </div>
+      </div>
+    </div>
+    <div id="table-wrap"></div>
+  </div>
+
+      </div> <!-- /.page -->
+    </div> <!-- /#page-basketball -->
+
+    <!-- Baseball page -->
+    <div id="page-baseball" class="page-section">
+      <div class="page">
+        <h1 style="text-align:center;">⚾ Who's The Best? ⚾</h1>
+        <p class="sub" style="text-align:center;">Compare two MLB players' stats by age</p>
+
+        <div style="text-align:center;margin-bottom:28px;">
+          <div class="toggle-wrap" style="display:inline-flex;">
+            <button class="toggle-btn active" id="mlb-btn-hitter" onclick="mlbSetMode('hitter')">Position Player</button>
+            <button class="toggle-btn" id="mlb-btn-pitcher" onclick="mlbSetMode('pitcher')">Pitcher</button>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <div class="slot-0">
+            <div class="player-label">Player 1</div>
+            <div class="search-wrap">
+              <input type="text" id="mlb-input-0" placeholder="Search player 1..." autocomplete="off" />
+              <div class="dropdown" id="mlb-dd-0"></div>
+            </div>
+            <div class="selected-name" id="mlb-sel-0"></div>
+            <div class="player-stats-line" id="mlb-stats-0"></div>
+          </div>
+          <div class="vs-label">VS</div>
+          <div class="slot-1">
+            <div class="player-label">Player 2</div>
+            <div class="search-wrap">
+              <input type="text" id="mlb-input-1" placeholder="Search player 2..." autocomplete="off" />
+              <div class="dropdown" id="mlb-dd-1"></div>
+            </div>
+            <div class="selected-name" id="mlb-sel-1"></div>
+            <div class="player-stats-line" id="mlb-stats-1"></div>
+          </div>
+        </div>
+
+        <div id="mlb-analysis"></div>
+
+        <div id="mlb-settings-wrap" style="display:none;margin-top:12px;margin-bottom:12px;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <button class="settings-btn" style="margin-bottom:0;" onclick="mlbToggleSettings()">
+              <span id="mlb-settings-arrow">▶</span> Tune Stat Score
+            </button>
+            <button class="settings-btn" style="margin-bottom:0;" onclick="mlbResetWeights()">↺ Reset to Defaults</button>
+          </div>
+          <div id="mlb-settings-panel" style="display:none;background:#1e293b;border-radius:12px;padding:20px 24px;border:1px solid #334155;">
+            <div class="settings-inner">
+              <div id="mlb-hitter-weights">
+                <div class="settings-col-title">Stat Composite Weights (0.5× – 2×)</div>
+                <div class="slider-row"><span class="slider-lbl">HR</span><input type="range" class="sw" id="mlb-w-hr" min="0.5" max="2" step="0.1" value="1.5" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-hr">1.5×</span></div>
+                <div class="slider-row"><span class="slider-lbl">RBI</span><input type="range" class="sw" id="mlb-w-rbi" min="0.5" max="2" step="0.1" value="1.0" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-rbi">1.0×</span></div>
+                <div class="slider-row"><span class="slider-lbl">OPS</span><input type="range" class="sw" id="mlb-w-ops" min="0.5" max="2" step="0.1" value="1.0" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-ops">1.0×</span></div>
+                <div class="slider-row"><span class="slider-lbl">AVG</span><input type="range" class="sw" id="mlb-w-avg" min="0.5" max="2" step="0.1" value="0.5" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-avg">0.5×</span></div>
+              </div>
+              <div id="mlb-pitcher-weights" style="display:none;">
+                <div class="settings-col-title">Stat Composite Weights (0.5× – 2×)</div>
+                <div class="slider-row"><span class="slider-lbl">SO</span><input type="range" class="sw" id="mlb-w-so" min="0.5" max="2" step="0.1" value="1.0" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-so">1.0×</span></div>
+                <div class="slider-row"><span class="slider-lbl neg">ERA</span><input type="range" class="sw neg-slider" id="mlb-w-era" min="0.5" max="2" step="0.1" value="1.5" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-era">1.5×</span></div>
+                <div class="slider-row"><span class="slider-lbl neg">WHIP</span><input type="range" class="sw neg-slider" id="mlb-w-whip" min="0.5" max="2" step="0.1" value="1.0" oninput="mlbUpdateWeights()"><span class="slider-val" id="mlb-v-whip">1.0×</span></div>
+              </div>
+              <div>
+                <div class="settings-col-title">Stat Score Sub-Weights</div>
+                <div class="slider-row"><span class="slider-lbl">Career</span><input type="range" class="sw" id="mlb-w-career" min="0" max="100" step="5" value="70" oninput="mlbAdjustLinked(this.id,['mlb-w-career','mlb-w-peak','mlb-w-lon'])"><span class="slider-val" id="mlb-v-career">70%</span></div>
+                <div class="slider-row"><span class="slider-lbl">Peak</span><input type="range" class="sw" id="mlb-w-peak" min="0" max="100" step="5" value="20" oninput="mlbAdjustLinked(this.id,['mlb-w-career','mlb-w-peak','mlb-w-lon'])"><span class="slider-val" id="mlb-v-peak">20%</span></div>
+                <div class="slider-row"><span class="slider-lbl">Longevity</span><input type="range" class="sw" id="mlb-w-lon" min="0" max="100" step="5" value="10" oninput="mlbAdjustLinked(this.id,['mlb-w-career','mlb-w-peak','mlb-w-lon'])"><span class="slider-val" id="mlb-v-lon">10%</span></div>
+                <div class="comp-note">Career avg · top-5 peak · longevity blend. Always sums to 100%.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="mlb-comparison" style="display:none;">
+          <div class="table-controls">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="table-title" id="mlb-table-title">By Age AVG</div>
+              <div class="legend">
+                <span id="mlb-legend-p1">Player 1</span>
+                <span style="color:#475569">vs</span>
+                <span id="mlb-legend-p2">Player 2</span>
+              </div>
+            </div>
+            <div class="controls-right">
+              <select id="mlb-stat-select" onchange="mlbSetStat(this.value)"></select>
+              <div class="toggle-wrap">
+                <button class="toggle-btn" id="mlb-btn-season" onclick="mlbSetView('season')">By Season</button>
+                <button class="toggle-btn active" id="mlb-btn-age" onclick="mlbSetView('age')">By Age</button>
+              </div>
+            </div>
+          </div>
+          <div id="mlb-table-wrap"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div> <!-- /.app-shell -->
+
+<script>
+  const CHAMPIONS = {
+    '1956-57':'BOS','1957-58':'STL','1958-59':'BOS','1959-60':'BOS',
+    '1960-61':'BOS','1961-62':'BOS','1962-63':'BOS','1963-64':'BOS',
+    '1964-65':'BOS','1965-66':'BOS','1966-67':'PHI','1967-68':'BOS',
+    '1968-69':'BOS','1969-70':'NYK','1970-71':'MIL','1971-72':'LAL',
+    '1972-73':'NYK','1973-74':'BOS','1974-75':'GSW','1975-76':'BOS',
+    '1976-77':'POR','1977-78':'WAS','1978-79':'SEA','1979-80':'LAL',
+    '1980-81':'BOS','1981-82':'LAL','1982-83':'PHI','1983-84':'BOS',
+    '1984-85':'LAL','1985-86':'BOS','1986-87':'LAL','1987-88':'LAL',
+    '1988-89':'DET','1989-90':'DET','1990-91':'CHI','1991-92':'CHI',
+    '1992-93':'CHI','1993-94':'HOU','1994-95':'HOU','1995-96':'CHI',
+    '1996-97':'CHI','1997-98':'CHI','1998-99':'SAS','1999-00':'LAL',
+    '2000-01':'LAL','2001-02':'LAL','2002-03':'SAS','2003-04':'DET',
+    '2004-05':'SAS','2005-06':'MIA','2006-07':'SAS','2007-08':'BOS',
+    '2008-09':'LAL','2009-10':'LAL','2010-11':'DAL','2011-12':'MIA',
+    '2012-13':'MIA','2013-14':'SAS','2014-15':'GSW','2015-16':'CLE',
+    '2016-17':'GSW','2017-18':'GSW','2018-19':'TOR','2019-20':'LAL',
+    '2020-21':'MIL','2021-22':'GSW','2022-23':'DEN','2023-24':'BOS',
+    '2024-25':'OKC',
+  };
+
+  function champ(season, team) {
+    return CHAMPIONS[season] === team;
+  }
+
+  const MVPS = {
+    '1955-56':'Bob Pettit','1956-57':'Bob Cousy','1957-58':'Bill Russell',
+    '1958-59':'Bob Pettit','1959-60':'Wilt Chamberlain','1960-61':'Bill Russell',
+    '1961-62':'Bill Russell','1962-63':'Bill Russell','1963-64':'Oscar Robertson',
+    '1964-65':'Bill Russell','1965-66':'Wilt Chamberlain','1966-67':'Wilt Chamberlain',
+    '1967-68':'Wilt Chamberlain','1968-69':'Wes Unseld','1969-70':'Willis Reed',
+    '1970-71':'Kareem Abdul-Jabbar','1971-72':'Kareem Abdul-Jabbar','1972-73':'Dave Cowens',
+    '1973-74':'Kareem Abdul-Jabbar','1974-75':'Bob McAdoo','1975-76':'Kareem Abdul-Jabbar',
+    '1976-77':'Kareem Abdul-Jabbar','1977-78':'Bill Walton','1978-79':'Moses Malone',
+    '1979-80':'Kareem Abdul-Jabbar','1980-81':'Julius Erving','1981-82':'Moses Malone',
+    '1982-83':'Moses Malone','1983-84':'Larry Bird','1984-85':'Larry Bird',
+    '1985-86':'Larry Bird','1986-87':'Magic Johnson','1987-88':'Michael Jordan',
+    '1988-89':'Magic Johnson','1989-90':'Magic Johnson','1990-91':'Michael Jordan',
+    '1991-92':'Michael Jordan','1992-93':'Charles Barkley','1993-94':'Hakeem Olajuwon',
+    '1994-95':'David Robinson','1995-96':'Michael Jordan','1996-97':'Karl Malone',
+    '1997-98':'Michael Jordan','1998-99':'Karl Malone','1999-00':'Shaquille O\'Neal',
+    '2000-01':'Allen Iverson','2001-02':'Tim Duncan','2002-03':'Tim Duncan',
+    '2003-04':'Kevin Garnett','2004-05':'Steve Nash','2005-06':'Steve Nash',
+    '2006-07':'Dirk Nowitzki','2007-08':'Kobe Bryant','2008-09':'LeBron James',
+    '2009-10':'LeBron James','2010-11':'Derrick Rose','2011-12':'LeBron James',
+    '2012-13':'LeBron James','2013-14':'Kevin Durant','2014-15':'Stephen Curry',
+    '2015-16':'Stephen Curry','2016-17':'Russell Westbrook','2017-18':'James Harden',
+    '2018-19':'Giannis Antetokounmpo','2019-20':'Giannis Antetokounmpo',
+    '2020-21':'Nikola Jokic','2021-22':'Nikola Jokic','2022-23':'Joel Embiid',
+    '2023-24':'Nikola Jokic','2024-25':'Shai Gilgeous-Alexander',
+  };
+
+  function normName(s) {
+    return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function mvp(season, playerName) {
+    return normName(MVPS[season]) === normName(playerName);
+  }
+
+  const STATS = [
+    { key: 'pts',     label: 'PTS',  decimals: 1 },
+    { key: 'reb',     label: 'REB',  decimals: 1 },
+    { key: 'ast',     label: 'AST',  decimals: 1 },
+    { key: 'stl',     label: 'STL',  decimals: 1 },
+    { key: 'blk',     label: 'BLK',  decimals: 1 },
+    { key: 'tov',     label: 'TOV',  decimals: 1 },
+    { key: 'min',     label: 'MIN',  decimals: 1 },
+    { key: 'gp',      label: 'GP'              },
+    { key: 'gs',      label: 'GS'              },
+    { key: 'oreb',    label: 'OREB', decimals: 1 },
+    { key: 'dreb',    label: 'DREB', decimals: 1 },
+    { key: 'fg_pct',  label: 'FG%',  pct: true  },
+    { key: 'fg3_pct', label: '3P%',  pct: true  },
+    { key: 'ft_pct',  label: 'FT%',  pct: true  },
+    { key: 'fgm',     label: 'FGM',  decimals: 1 },
+    { key: 'fga',     label: 'FGA',  decimals: 1 },
+    { key: 'fg3m',    label: '3PM',  decimals: 1 },
+    { key: 'fg3a',    label: '3PA',  decimals: 1 },
+    { key: 'ftm',     label: 'FTM',  decimals: 1 },
+    { key: 'fta',     label: 'FTA',  decimals: 1 },
+    { key: 'pf',      label: 'PF',   decimals: 1 },
+  ];
+
+  const state = { 0: null, 1: null };
+  let viewMode = 'age';
+  let selectedStat = STATS[0];
+  let lastP1Wins = true;
+  const standingsCache = {};
+
+  function applyWinnerColors(p1Wins) {
+    const winColor = '#4ade80', loseColor = '#ef4444';
+    const sel0 = document.getElementById('sel-0');
+    const sel1 = document.getElementById('sel-1');
+    sel0.classList.toggle('name-winner', p1Wins);
+    sel0.classList.toggle('name-loser',  !p1Wins);
+    sel1.classList.toggle('name-winner', !p1Wins);
+    sel1.classList.toggle('name-loser',  p1Wins);
+    const lp1 = document.getElementById('legend-p1');
+    const lp2 = document.getElementById('legend-p2');
+    if (lp1) lp1.style.color = p1Wins ? winColor : loseColor;
+    if (lp2) lp2.style.color = p1Wins ? loseColor : winColor;
+    document.querySelectorAll('th.p1-head').forEach(el => el.style.color = p1Wins ? winColor : loseColor);
+    document.querySelectorAll('th.p2-head').forEach(el => el.style.color = p1Wins ? loseColor : winColor);
+  }
+
+  async function fetchStandings(seasons) {
+    const missing = seasons.filter(s => !(s in standingsCache));
+    for (let i = 0; i < missing.length; i += 5) {
+      await Promise.all(missing.slice(i, i + 5).map(async s => {
+        try {
+          standingsCache[s] = await (await fetch(`/api/standings/${encodeURIComponent(s)}`)).json();
+        } catch { standingsCache[s] = {}; }
+      }));
+    }
+  }
+
+  // Fetch standings in background and update win% spans in-place as each season resolves
+  function fetchStandingsBackground(seasons) {
+    const missing = seasons.filter(s => !(s in standingsCache));
+    missing.forEach(async season => {
+      try {
+        standingsCache[season] = await (await fetch(`/api/standings/${encodeURIComponent(season)}`)).json();
+      } catch { standingsCache[season] = {}; }
+      // Update only the spans for this season in the DOM
+      document.querySelectorAll(`.wp-span[data-season="${season}"]`).forEach(el => {
+        const teamId = el.dataset.teamid;
+        const pct = standingsCache[season]?.[teamId];
+        if (pct != null) el.textContent = ` · ${(pct * 100).toFixed(1)}W%`;
+      });
+    });
+  }
+
+  function winPct(season, teamId) {
+    const pct = standingsCache[season]?.[teamId];
+    return pct != null ? ` · ${(pct * 100).toFixed(1)}W%` : '';
+  }
+
+  const DEFAULTS = {
+    wPts: 1.5, wReb: 0.5, wAst: 1.0, wStl: 1.0, wBlk: 1.0, wTov: 0.5,
+    wStat: 70, wMvp: 20, wChamp: 10,
+    wCareer: 70, wPeak: 20, wLon: 10,
+  };
+  const config = { ...DEFAULTS };
+
+  function adjustLinked(changedId, groupIds) {
+    const others = groupIds.filter(id => id !== changedId);
+    const val = +document.getElementById(changedId).value;
+    const remaining = 100 - val;
+    const r5 = n => Math.round(n / 5) * 5;
+    const otherVals = others.map(id => +document.getElementById(id).value);
+    const total = otherVals.reduce((a, b) => a + b, 0);
+    let distributed = total === 0
+      ? others.map(() => r5(remaining / others.length))
+      : otherVals.map(v => r5(remaining * v / total));
+    const gap = remaining - distributed.reduce((a, b) => a + b, 0);
+    distributed[distributed.length - 1] += gap;
+    others.forEach((id, i) => document.getElementById(id).value = distributed[i]);
+    updateWeights();
+  }
+
+  function toggleAnalysisDetail(btn) {
+    const detail = document.getElementById('analysis-detail');
+    const open = detail.classList.toggle('open');
+    btn.textContent = open ? '▲ Less' : '▼ More';
+  }
+
+  function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    const arrow = document.getElementById('settings-arrow');
+    arrow.textContent = panel.classList.toggle('open') ? '▼' : '▶';
+  }
+
+  function resetWeights() {
+    Object.assign(config, DEFAULTS);
+    document.getElementById('w-pts').value    = DEFAULTS.wPts;
+    document.getElementById('w-reb').value    = DEFAULTS.wReb;
+    document.getElementById('w-ast').value    = DEFAULTS.wAst;
+    document.getElementById('w-stl').value    = DEFAULTS.wStl;
+    document.getElementById('w-blk').value    = DEFAULTS.wBlk;
+    document.getElementById('w-tov').value    = DEFAULTS.wTov;
+    document.getElementById('w-career').value = DEFAULTS.wCareer;
+    document.getElementById('w-peak').value   = DEFAULTS.wPeak;
+    document.getElementById('w-lon').value    = DEFAULTS.wLon;
+    const statEl = document.getElementById('w-stat');
+    if (statEl) {
+      statEl.value = DEFAULTS.wStat;
+      document.getElementById('w-mvp').value   = DEFAULTS.wMvp;
+      document.getElementById('w-champ').value = DEFAULTS.wChamp;
+    }
+    updateWeights();
+  }
+
+  function updateWeights() {
+    config.wPts   = +document.getElementById('w-pts').value;
+    config.wReb   = +document.getElementById('w-reb').value;
+    config.wAst   = +document.getElementById('w-ast').value;
+    config.wStl   = +document.getElementById('w-stl').value;
+    config.wBlk   = +document.getElementById('w-blk').value;
+    config.wTov   = +document.getElementById('w-tov').value;
+    config.wStat  = +document.getElementById('w-stat').value;
+    config.wMvp   = +document.getElementById('w-mvp').value;
+    config.wChamp = +document.getElementById('w-champ').value;
+
+    document.getElementById('v-pts').textContent  = config.wPts.toFixed(1) + '×';
+    document.getElementById('v-reb').textContent  = config.wReb.toFixed(1) + '×';
+    document.getElementById('v-ast').textContent  = config.wAst.toFixed(1) + '×';
+    document.getElementById('v-stl').textContent  = config.wStl.toFixed(1) + '×';
+    document.getElementById('v-blk').textContent  = config.wBlk.toFixed(1) + '×';
+    document.getElementById('v-tov').textContent  = '−' + config.wTov.toFixed(1) + '×';
+    config.wCareer = +document.getElementById('w-career').value;
+    config.wPeak   = +document.getElementById('w-peak').value;
+    config.wLon    = +document.getElementById('w-lon').value;
+
+    document.getElementById('v-career').textContent = config.wCareer + '%';
+    document.getElementById('v-peak').textContent   = config.wPeak + '%';
+    document.getElementById('v-lon').textContent    = config.wLon + '%';
+
+    // Component sliders live inside the analysis card — only update if rendered
+    const statEl = document.getElementById('w-stat');
+    if (statEl) {
+      config.wStat  = +statEl.value;
+      config.wMvp   = +document.getElementById('w-mvp').value;
+      config.wChamp = +document.getElementById('w-champ').value;
+      document.getElementById('v-stat').textContent  = config.wStat + '%';
+      document.getElementById('v-mvp').textContent   = config.wMvp + '%';
+      document.getElementById('v-champ').textContent = config.wChamp + '%';
+    }
+
+    const p1 = state[0], p2 = state[1];
+    if (p1?.seasons && p2?.seasons) renderAnalysis(p1, p2);
+  }
+
+  function byAgeMap(seasons) {
+    const map = {};
+    for (const s of seasons) {
+      if (!s.age) continue;
+      if (!map[s.age] || s.gp > map[s.age].gp) map[s.age] = s;
+    }
+    return map;
+  }
+
+  function seasonComposite(s) {
+    return config.wPts*(+(s.pts)||0) + config.wReb*(+(s.reb)||0) + config.wAst*(+(s.ast)||0)
+         + config.wStl*(+(s.stl)||0) + config.wBlk*(+(s.blk)||0) - config.wTov*(+(s.tov)||0);
+  }
+
+  function runAnalysis(p1, p2) {
+    const mvp1 = p1.seasons.filter(s => normName(MVPS[s.season]) === normName(p1.name)).length;
+    const mvp2 = p2.seasons.filter(s => normName(MVPS[s.season]) === normName(p2.name)).length;
+    const champ1 = p1.seasons.filter(s => CHAMPIONS[s.season] === s.team).length;
+    const champ2 = p2.seasons.filter(s => CHAMPIONS[s.season] === s.team).length;
+
+    function careerAvg(seasons) {
+      let tv = 0, tg = 0;
+      for (const s of seasons) { const g = +(s.gp)||0; if (!g) continue; tv += seasonComposite(s)*g; tg += g; }
+      return tg > 0 ? tv/tg : 0;
+    }
+    const career1 = careerAvg(p1.seasons), career2 = careerAvg(p2.seasons);
+
+    function peakAvg(seasons) {
+      const vals = seasons.map(seasonComposite).sort((a,b)=>b-a).slice(0,5);
+      return vals.reduce((a,b)=>a+b,0) / (vals.length||1);
+    }
+    const peak1 = peakAvg(p1.seasons), peak2 = peakAvg(p2.seasons);
+
+    const am1 = byAgeMap(p1.seasons), am2 = byAgeMap(p2.seasons);
+
+    function norm(a, b) { const t = a+b; return t > 0 ? [a/t*100, b/t*100] : [50,50]; }
+
+    // 4th sub-factor: Longevity — blend of three components
+    // 1. Uncontested ages: ages only one player played, credited to them
+    const unc1 = Object.keys(am1).filter(a => !am2[a]).length;
+    const unc2 = Object.keys(am2).filter(a => !am1[a]).length;
+    const [uncS1, uncS2] = norm(unc1, unc2);
+
+    // 2. Total career value: composite × GP summed (rewards volume + longevity)
+    const tv1 = p1.seasons.reduce((s, r) => s + seasonComposite(r) * (+(r.gp)||0), 0);
+    const tv2 = p2.seasons.reduce((s, r) => s + seasonComposite(r) * (+(r.gp)||0), 0);
+    const [tvS1, tvS2] = norm(tv1, tv2);
+
+    // 3. Sustained excellence: seasons above the shared median composite
+    const allVals = [...p1.seasons, ...p2.seasons].map(seasonComposite).sort((a,b) => a-b);
+    const median = allVals[Math.floor(allVals.length / 2)];
+    const elite1 = p1.seasons.filter(s => seasonComposite(s) > median).length;
+    const elite2 = p2.seasons.filter(s => seasonComposite(s) > median).length;
+    const [elS1, elS2] = norm(elite1, elite2);
+
+    const lon1 = (uncS1 + tvS1 + elS1) / 3;
+    const lon2 = (uncS2 + tvS2 + elS2) / 3;
+
+    const [cS1,cS2] = norm(career1,career2);
+    const [pS1,pS2] = norm(peak1,peak2);
+    const subTotal = config.wCareer + config.wPeak + config.wLon || 1;
+    const stat1 = cS1*(config.wCareer/subTotal) + pS1*(config.wPeak/subTotal) + lon1*(config.wLon/subTotal);
+    const stat2 = cS2*(config.wCareer/subTotal) + pS2*(config.wPeak/subTotal) + lon2*(config.wLon/subTotal);
+
+    const [mvpS1,mvpS2] = norm(mvp1,mvp2);
+    const [chS1,chS2]   = norm(champ1,champ2);
+
+    const compTotal = config.wStat + config.wMvp + config.wChamp || 1;
+    const final1 = stat1*(config.wStat/compTotal) + mvpS1*(config.wMvp/compTotal) + chS1*(config.wChamp/compTotal);
+    const final2 = stat2*(config.wStat/compTotal) + mvpS2*(config.wMvp/compTotal) + chS2*(config.wChamp/compTotal);
+
+    return {
+      final1, final2,
+      stat:  { score1:stat1, score2:stat2, career1, career2, peak1, peak2,
+               lon1, lon2, unc1, unc2, elite1, elite2 },
+      mvp:   { count1:mvp1,   count2:mvp2,   score1:mvpS1,  score2:mvpS2  },
+      champ: { count1:champ1, count2:champ2, score1:chS1, score2:chS2 },
+    };
+  }
+
+  function renderAnalysis(p1, p2) {
+    const el = document.getElementById('analysis');
+    if (!p1?.seasons || !p2?.seasons) { el.classList.remove('show'); return; }
+
+    const a = runAnalysis(p1, p2);
+    const diff = Math.abs(a.final1 - a.final2);
+    const p1wins = a.final1 >= a.final2;
+    const winnerName = p1wins ? p1.name : p2.name;
+
+    let verdict;
+    if (diff < 3)      verdict = `Both players are essentially equal`;
+    else if (diff < 8) verdict = `<span class="verdict-name">${winnerName}</span> has a slight edge`;
+    else               verdict = `<span class="verdict-name">${winnerName}</span> appears to be the stronger player`;
+
+    function section(title, s1, s2, detail) {
+      const w1 = Math.max(0, Math.min(100, s1)).toFixed(0);
+      const w2 = Math.max(0, Math.min(100, s2)).toFixed(0);
+      const tied = Math.abs(s1 - s2) < 0.05;
+      const c1 = tied ? '#3b82f6' : s1 > s2 ? '#4ade80' : '#ef4444';
+      const c2 = tied ? '#ec4899' : s2 > s1 ? '#4ade80' : '#ef4444';
+      const g1 = tied ? 'linear-gradient(90deg,#1d4ed8,#3b82f6)' : s1 > s2 ? 'linear-gradient(90deg,#166534,#4ade80)' : 'linear-gradient(90deg,#7f1d1d,#ef4444)';
+      const g2 = tied ? 'linear-gradient(90deg,#ec4899,#be185d)' : s2 > s1 ? 'linear-gradient(90deg,#166534,#4ade80)' : 'linear-gradient(90deg,#7f1d1d,#ef4444)';
+      return `<div class="a-section">
+        <div class="a-title">${title}</div>
+        <div class="a-bar-wrap">
+          <div class="a-bar-name" style="color:${c1};text-align:right;width:80px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p1.name.split(' ').pop()}</div>
+          <div class="a-bar-track">
+            <div class="a-bar-p1" style="width:${w1}%;background:${g1}"></div>
+            <div class="a-bar-p2" style="width:${w2}%;background:${g2}"></div>
+          </div>
+          <div class="a-bar-name" style="color:${c2};width:80px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p2.name.split(' ').pop()}</div>
+        </div>
+        <div class="a-bar-scores">
+          <span style="color:${c1};font-weight:600;">${s1.toFixed(1)}</span>
+          <span class="a-detail">${detail}</span>
+          <span style="color:${c2};font-weight:600;">${s2.toFixed(1)}</span>
+        </div>
+      </div>`;
+    }
+
+    const wasOpen = document.getElementById('analysis-detail')?.classList.contains('open');
+    el.innerHTML = `<div class="analysis-card">
+      <div class="verdict">
+        <span>🔬 Verdict: ${verdict}</span>
+        <button class="analysis-expand-btn" onclick="toggleAnalysisDetail(this)" id="analysis-expand-btn">${wasOpen ? '▲ Less' : '▼ More'}</button>
+      </div>
+      ${section('Overall Score', a.final1, a.final2, '')}
+      <div class="cwi-wrap">
+        <div class="cwi-title">Scoring Weights</div>
+        <div class="cwi-row"><span class="cwi-lbl">Stats</span><input type="range" class="sw" id="w-stat" min="0" max="100" step="5" value="${config.wStat}" oninput="adjustLinked(this.id,['w-stat','w-mvp','w-champ'])"><span class="cwi-val" id="v-stat">${config.wStat}%</span></div>
+        <div class="cwi-row"><span class="cwi-lbl">MVPs</span><input type="range" class="sw" id="w-mvp" min="0" max="100" step="5" value="${config.wMvp}" oninput="adjustLinked(this.id,['w-stat','w-mvp','w-champ'])"><span class="cwi-val" id="v-mvp">${config.wMvp}%</span></div>
+        <div class="cwi-row"><span class="cwi-lbl">Champ</span><input type="range" class="sw" id="w-champ" min="0" max="100" step="5" value="${config.wChamp}" oninput="adjustLinked(this.id,['w-stat','w-mvp','w-champ'])"><span class="cwi-val" id="v-champ">${config.wChamp}%</span></div>
+        <div class="cwi-note">Always sums to 100% · adjust to weight individual brilliance vs. team success</div>
+      </div>
+      <div id="analysis-detail" class="${wasOpen ? 'open' : ''}">
+        ${section('Statistical Performance', a.stat.score1, a.stat.score2,
+          `career avg ${a.stat.career1.toFixed(1)} vs ${a.stat.career2.toFixed(1)} · peak ${a.stat.peak1.toFixed(1)} vs ${a.stat.peak2.toFixed(1)} · longevity ${a.stat.lon1.toFixed(1)} vs ${a.stat.lon2.toFixed(1)} (uncontested ages ${a.stat.unc1}–${a.stat.unc2} · elite seasons ${a.stat.elite1}–${a.stat.elite2})`)}
+        ${section('MVP Awards', a.mvp.score1, a.mvp.score2,
+          `${a.mvp.count1} MVP${a.mvp.count1!==1?'s':''} vs ${a.mvp.count2} MVP${a.mvp.count2!==1?'s':''}`)}
+        ${section('Championship Wins', a.champ.score1, a.champ.score2,
+          `${a.champ.count1} ring${a.champ.count1!==1?'s':''} vs ${a.champ.count2} ring${a.champ.count2!==1?'s':''}`)}
+        <div style="font-size:0.65rem;color:#334155;margin-top:16px;">Composite = PTS + 1.2×REB + 1.5×AST + 2×STL + 1.5×BLK − TOV · Championship rings weighted by player's own composite in those seasons</div>
+      </div>
+    </div>`;
+    el.classList.add('show');
+    document.getElementById('settings-wrap').classList.add('show');
+
+    // Color player names: green for leader, red for trailer (neutral if essentially equal)
+    const sel0 = document.getElementById('sel-0');
+    const sel1 = document.getElementById('sel-1');
+    const p1Wins = a.final1 >= a.final2;
+    lastP1Wins = p1Wins;
+    applyWinnerColors(p1Wins);
+  }
+
+  function fmtVal(v, stat) {
+    if (v == null || Number.isNaN(Number(v))) return null;
+    const n = Number(v);
+    if (stat.pct) return (n * 100).toFixed(1) + '%';
+    if (stat.decimals != null) return n.toFixed(stat.decimals);
+    return String(Math.round(n));
+  }
+
+  function setStat(key) {
+    selectedStat = STATS.find(s => s.key === key) || STATS[0];
+    updateTitleAndLegend();
+    renderTable();
+  }
+
+  function updateTitleAndLegend() {
+    const viewLabel = viewMode === 'season' ? 'Season-by-Season' : 'By Age';
+    document.getElementById('table-title').textContent = `${viewLabel} ${selectedStat.label}`;
+  }
+
+  function setView(mode) {
+    viewMode = mode;
+    document.getElementById('btn-season').classList.toggle('active', mode === 'season');
+    document.getElementById('btn-age').classList.toggle('active', mode === 'age');
+    updateTitleAndLegend();
+    renderTable();
+  }
+
+  // Wire searches
+  [0, 1].forEach(idx => {
+    const input = document.getElementById(`input-${idx}`);
+    const dd    = document.getElementById(`dd-${idx}`);
+    let timer;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (!q) { dd.innerHTML = ''; dd.classList.remove('open'); return; }
+      timer = setTimeout(() => doSearch(q, dd, input, idx), 250);
+    });
+    input.addEventListener('blur', () => setTimeout(() => dd.classList.remove('open'), 150));
+  });
+
+  async function doSearch(q, dd, input, idx) {
+    const r = await fetch(`/api/players?q=${encodeURIComponent(q)}`);
+    const list = await r.json();
+    if (!list.length) { dd.innerHTML = ''; dd.classList.remove('open'); return; }
+    dd.innerHTML = list.map(p =>
+      `<div class="opt" data-id="${p.id}" data-name="${p.name}" data-team="${p.team||''}">
+        <span>${p.name}</span><span class="opt-team">${p.team||'FA'}</span>
+      </div>`
+    ).join('');
+    dd.classList.add('open');
+    dd.querySelectorAll('.opt').forEach(el => {
+      el.addEventListener('mousedown', () => {
+        dd.classList.remove('open');
+        input.value = '';
+        selectPlayer(idx, el.dataset.id, el.dataset.name);
+      });
+    });
+  }
+
+  function updatePlayerLabel(idx, p) {
+    const el    = document.getElementById(`sel-${idx}`);
+    const stats = document.getElementById(`stats-${idx}`);
+    if (!p?.seasons) { el.textContent = p?.name || ''; stats.innerHTML = ''; return; }
+
+    const mvpCount   = p.seasons.filter(s => normName(MVPS[s.season]) === normName(p.name)).length;
+    const champCount = p.seasons.filter(s => CHAMPIONS[s.season] === s.team).length;
+    const badges = [];
+    if (champCount > 0) badges.push(`🏆 ${champCount}`);
+    if (mvpCount   > 0) badges.push(`🏅 ${mvpCount}`);
+    el.innerHTML = `<span>${p.name}</span>` + badges.map(b => `<span class="player-badge">${b}</span>`).join('');
+
+    // GP-weighted career averages
+    let tg = 0, tPts = 0, tReb = 0, tAst = 0, tBlk = 0, tStl = 0;
+    for (const s of p.seasons) {
+      const g = +(s.gp) || 0;
+      if (!g) continue;
+      tg += g; tPts += (+(s.pts)||0)*g; tReb += (+(s.reb)||0)*g;
+      tAst += (+(s.ast)||0)*g; tBlk += (+(s.blk)||0)*g; tStl += (+(s.stl)||0)*g;
+    }
+    if (tg === 0) { stats.innerHTML = ''; return; }
+    const avg = k => (k / tg).toFixed(1);
+    const chips = [
+      ['PTS', avg(tPts)], ['REB', avg(tReb)], ['AST', avg(tAst)],
+      ['BLK', avg(tBlk)], ['STL', avg(tStl)],
+    ];
+    stats.innerHTML = chips.map(([lbl, val]) =>
+      `<span class="player-stat-chip"><span>${val}</span> ${lbl}</span>`
+    ).join('');
+  }
+
+  async function selectPlayer(idx, id, name) {
+    const selEl = document.getElementById(`sel-${idx}`);
+    selEl.textContent = name;
+    selEl.classList.remove('name-winner', 'name-loser');
+    document.getElementById(`stats-${idx}`).innerHTML = '';
+    document.getElementById(`legend-p${idx+1}`).textContent = name;
+    state[idx] = { id, name, seasons: null, error: false };
+    renderTable();
+
+    try {
+      const r = await fetch(`/api/career/${id}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const seasons = await r.json();
+      if (state[idx]?.id === id) {
+        state[idx].seasons = seasons;
+        state[idx].error = false;
+        updatePlayerLabel(idx, state[idx]);
+        renderTable();
+      }
+    } catch (e) {
+      if (state[idx]?.id === id) {
+        state[idx].seasons = [];
+        state[idx].error = true;
+        renderTable();
+      }
+    }
+  }
+
+  async function renderTable() {
+    const comp = document.getElementById('comparison');
+    const wrap = document.getElementById('table-wrap');
+    const p1 = state[0], p2 = state[1];
+
+    const analysisEl = document.getElementById('analysis');
+    const settingsEl = document.getElementById('settings-wrap');
+    if (!p1 && !p2) { comp.classList.remove('show'); analysisEl.classList.remove('show'); settingsEl.classList.remove('show'); return; }
+    comp.classList.add('show');
+
+    if (!p1 || !p2 || p1.seasons === null || p2.seasons === null) {
+      wrap.innerHTML = '<div class="loading-msg">Loading career stats...</div>';
+      analysisEl.classList.remove('show');
+      return;
+    }
+
+    if (p1.error || p2.error) {
+      const who = p1.error ? p1.name : p2.name;
+      wrap.innerHTML = `<div class="loading-msg">Failed to load stats for ${who}. Try selecting them again.</div>`;
+      analysisEl.classList.remove('show');
+      return;
+    }
+
+    renderAnalysis(p1, p2);
+
+    if (viewMode === 'season') renderBySeason(wrap, p1, p2);
+    else renderByAge(wrap, p1, p2);
+  }
+
+  function buildRow(key, s1, s2, p1name, p2name) {
+    const raw1 = s1 ? s1[selectedStat.key] : null;
+    const raw2 = s2 ? s2[selectedStat.key] : null;
+    const v1 = (raw1 != null && raw1 !== '') ? Number(raw1) : null;
+    const v2 = (raw2 != null && raw2 !== '') ? Number(raw2) : null;
+
+    const display1 = (v1 != null && !Number.isNaN(v1)) ? fmtVal(v1, selectedStat) : null;
+    const display2 = (v2 != null && !Number.isNaN(v2)) ? fmtVal(v2, selectedStat) : null;
+
+    let diffText = '', diffClass = 'diff-zero';
+    let winP1 = false, winP2 = false;
+    if (display1 != null && display2 != null) {
+      const d = v1 - v2;
+      const absDiff = selectedStat.pct
+        ? (Math.abs(d) * 100).toFixed(1) + '%'
+        : Math.abs(d).toFixed(selectedStat.decimals ?? 0);
+      diffText = d === 0 ? 'Tied' : `${d > 0 ? '+' : '-'}${absDiff}`;
+      diffClass = d > 0 ? 'diff-p1' : d < 0 ? 'diff-p2' : 'diff-zero';
+      winP1 = d > 0; winP2 = d < 0;
+    }
+
+    const rowClass = winP1 ? 'row-win-p1' : winP2 ? 'row-win-p2' : '';
+    const cls1 = `ppg ppg-p1${winP1 ? ' winner' : winP2 ? ' loser' : ''}`;
+    const cls2 = `ppg ppg-p2${winP2 ? ' winner' : winP1 ? ' loser' : ''}`;
+
+    const trophy1 = s1 && champ(s1.season, s1.team) ? ' 🏆' : '';
+    const trophy2 = s2 && champ(s2.season, s2.team) ? ' 🏆' : '';
+    const mvp1 = s1 && mvp(s1.season, p1name) ? ' 🏅' : '';
+    const mvp2 = s2 && mvp(s2.season, p2name) ? ' 🏅' : '';
+
+    const wp1 = s1 ? `<span class="wp-span" data-season="${s1.season}" data-teamid="${s1.team_id}">${winPct(s1.season, s1.team_id)}</span>` : '';
+    const wp2 = s2 ? `<span class="wp-span" data-season="${s2.season}" data-teamid="${s2.team_id}">${winPct(s2.season, s2.team_id)}</span>` : '';
+
+    function contextLine(s) {
+      if (selectedStat.key !== 'pts' || !s) return '';
+      const r = (+s.reb||0).toFixed(1), a = (+s.ast||0).toFixed(1);
+      const blk = (+s.blk||0).toFixed(1), stl = (+s.stl||0).toFixed(1);
+      return `<br><span class="stat-context">${r} REB · ${a} AST · ${blk} BLK · ${stl} STL</span>`;
+    }
+
+    const cell1 = display1 != null
+      ? `<td class="${cls1}">${display1}${contextLine(s1)}<br><span class="sub-info">${s1.season} · ${s1.team}${trophy1}${mvp1}${wp1} · ${s1.gp}g</span></td>`
+      : `<td class="no-data">—</td>`;
+    const cell2 = display2 != null
+      ? `<td class="${cls2}">${display2}${contextLine(s2)}<br><span class="sub-info">${s2.season} · ${s2.team}${trophy2}${mvp2}${wp2} · ${s2.gp}g</span></td>`
+      : `<td class="no-data">—</td>`;
+
+
+    return `<tr class="${rowClass}"><td>${key}</td>${cell1}${cell2}<td class="diff ${diffClass}">${diffText}</td></tr>`;
+  }
+
+  async function renderBySeason(wrap, p1, p2) {
+    const allSeasons = [...new Set([...p1.seasons.map(s=>s.season), ...p2.seasons.map(s=>s.season)])].sort();
+    const m1 = Object.fromEntries(p1.seasons.map(s=>[s.season,s]));
+    const m2 = Object.fromEntries(p2.seasons.map(s=>[s.season,s]));
+
+    const makeRows = () => allSeasons.map(season =>
+      buildRow(season, m1[season]||null, m2[season]||null, p1.name, p2.name)
+    ).join('');
+
+    wrap.innerHTML = tableHTML(p1.name, p2.name, 'Season', makeRows());
+    applyWinnerColors(lastP1Wins);
+    fetchStandingsBackground(allSeasons);
+  }
+
+  async function renderByAge(wrap, p1, p2) {
+    const allAges = new Set([
+      ...p1.seasons.map(s=>s.age).filter(Boolean),
+      ...p2.seasons.map(s=>s.age).filter(Boolean),
+    ]);
+    const sorted = [...allAges].sort((a,b)=>a-b);
+
+    const m1 = byAgeMap(p1.seasons);
+    const m2 = byAgeMap(p2.seasons);
+
+    const seasonsList = [...new Set([
+      ...Object.values(m1).map(s=>s.season),
+      ...Object.values(m2).map(s=>s.season),
+    ])];
+
+    const subtitle = `e.g. "Age 26" shows each player's season when they were 26`;
+    const makeRows = () => sorted.map(age =>
+      buildRow(`Age ${age}`, m1[age]||null, m2[age]||null, p1.name, p2.name)
+    ).join('');
+    const wrap2 = () => `<p style="font-size:0.78rem;color:#64748b;margin-bottom:10px;">${subtitle}</p>` + tableHTML(p1.name, p2.name, 'Age', makeRows());
+
+    wrap.innerHTML = wrap2();
+    applyWinnerColors(lastP1Wins);
+    fetchStandingsBackground(seasonsList);
+  }
+
+  function navigate(page) {
+    const valid = ['home', 'basketball', 'baseball'];
+    if (!valid.includes(page)) page = 'home';
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+    document.getElementById(`page-${page}`).classList.add('active');
+    document.querySelector(`.nav-link[data-page="${page}"]`).classList.add('active');
+    history.replaceState(null, '', `#${page}`);
+  }
+
+  window.addEventListener('hashchange', () => {
+    navigate(location.hash.slice(1));
+  });
+
+  navigate(location.hash.slice(1) || 'home');
+
+  function tableHTML(p1name, p2name, keyLabel, rows) {
+    return `<table>
+      <thead><tr>
+        <th>${keyLabel}</th>
+        <th class="p1-head">${p1name}</th>
+        <th class="p2-head">${p2name}</th>
+        <th>+/−</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ============================================================
+  // MLB BASEBALL
+  // ============================================================
+
+  const MLB_TEAM_ABBR_MAP = {
+    108:'LAA',109:'ARI',110:'BAL',111:'BOS',112:'CHC',113:'CIN',
+    114:'CLE',115:'COL',116:'DET',117:'HOU',118:'KC', 119:'LAD',
+    120:'WSH',121:'NYM',133:'OAK',134:'PIT',135:'SD', 136:'SEA',
+    137:'SF', 138:'STL',139:'TB', 140:'TEX',141:'TOR',142:'MIN',
+    143:'PHI',144:'ATL',145:'CWS',146:'MIA',147:'NYY',158:'MIL',
+  };
+  function mlbTeamAbbr(teamId) { return MLB_TEAM_ABBR_MAP[teamId] || '—'; }
+
+  const MLB_WS_CHAMPIONS = {
+    1950:147,1951:147,1952:147,1953:147,1954:137,1955:119,1956:147,
+    1957:144,1958:147,1959:119,1960:134,1961:147,1962:147,1963:119,
+    1964:138,1965:119,1966:110,1967:138,1968:116,1969:121,1970:110,
+    1971:134,1972:133,1973:133,1974:133,1975:113,1976:113,1977:147,
+    1978:147,1979:134,1980:143,1981:119,1982:138,1983:110,1984:116,
+    1985:118,1986:121,1987:142,1988:119,1989:133,1990:113,1991:142,
+    1992:141,1993:141,
+    1995:144,1996:147,1997:146,1998:147,1999:147,2000:147,2001:109,
+    2002:108,2003:146,2004:111,2005:145,2006:138,2007:111,2008:143,
+    2009:147,2010:137,2011:138,2012:137,2013:111,2014:137,2015:118,
+    2016:112,2017:117,2018:111,2019:120,2020:119,2021:144,2022:117,
+    2023:140,2024:119,
+  };
+
+  const MLB_MVP = {
+    1950:['Phil Rizzuto','Jim Konstanty'],1951:['Yogi Berra','Roy Campanella'],
+    1952:['Bobby Shantz','Hank Sauer'],1953:['Al Rosen','Roy Campanella'],
+    1954:['Yogi Berra','Willie Mays'],1955:['Yogi Berra','Roy Campanella'],
+    1956:['Mickey Mantle','Don Newcombe'],1957:['Mickey Mantle','Hank Aaron'],
+    1958:['Jackie Jensen','Ernie Banks'],1959:['Nellie Fox','Ernie Banks'],
+    1960:['Roger Maris','Dick Groat'],1961:['Roger Maris','Frank Robinson'],
+    1962:['Mickey Mantle','Maury Wills'],1963:['Elston Howard','Sandy Koufax'],
+    1964:['Brooks Robinson','Ken Boyer'],1965:['Zoilo Versalles','Willie Mays'],
+    1966:['Frank Robinson','Roberto Clemente'],1967:['Carl Yastrzemski','Orlando Cepeda'],
+    1968:['Denny McLain','Bob Gibson'],1969:['Harmon Killebrew','Willie McCovey'],
+    1970:['Boog Powell','Johnny Bench'],1971:['Vida Blue','Joe Torre'],
+    1972:['Dick Allen','Johnny Bench'],1973:['Reggie Jackson','Pete Rose'],
+    1974:['Jeff Burroughs','Steve Garvey'],1975:['Fred Lynn','Joe Morgan'],
+    1976:['Thurman Munson','Joe Morgan'],1977:['Rod Carew','George Foster'],
+    1978:['Jim Rice','Dave Parker'],1979:['Don Baylor','Willie Stargell','Keith Hernandez'],
+    1980:['George Brett','Mike Schmidt'],1981:['Rollie Fingers','Mike Schmidt'],
+    1982:['Robin Yount','Dale Murphy'],1983:['Cal Ripken Jr.','Dale Murphy'],
+    1984:['Willie Hernandez','Ryne Sandberg'],1985:['Don Mattingly','Willie McGee'],
+    1986:['Roger Clemens','Mike Schmidt'],1987:['George Bell','Andre Dawson'],
+    1988:['Jose Canseco','Kirk Gibson'],1989:['Robin Yount','Kevin Mitchell'],
+    1990:['Rickey Henderson','Barry Bonds'],1991:['Cal Ripken Jr.','Terry Pendleton'],
+    1992:['Dennis Eckersley','Barry Bonds'],1993:['Frank Thomas','Barry Bonds'],
+    1994:['Frank Thomas','Jeff Bagwell'],1995:['Mo Vaughn','Barry Larkin'],
+    1996:['Juan Gonzalez','Ken Caminiti'],1997:['Ken Griffey Jr.','Larry Walker'],
+    1998:['Juan Gonzalez','Sammy Sosa'],1999:['Ivan Rodriguez','Chipper Jones'],
+    2000:['Jason Giambi','Jeff Kent'],2001:['Ichiro Suzuki','Barry Bonds'],
+    2002:['Miguel Tejada','Barry Bonds'],2003:['Alex Rodriguez','Barry Bonds'],
+    2004:['Vladimir Guerrero','Barry Bonds'],2005:['Alex Rodriguez','Albert Pujols'],
+    2006:['Justin Morneau','Ryan Howard'],2007:['Alex Rodriguez','Jimmy Rollins'],
+    2008:['Dustin Pedroia','Albert Pujols'],2009:['Joe Mauer','Albert Pujols'],
+    2010:['Josh Hamilton','Joey Votto'],2011:['Justin Verlander','Ryan Braun'],
+    2012:['Miguel Cabrera','Buster Posey'],2013:['Miguel Cabrera','Andrew McCutchen'],
+    2014:['Mike Trout','Clayton Kershaw'],2015:['Josh Donaldson','Bryce Harper'],
+    2016:['Mike Trout','Kris Bryant'],2017:['Jose Altuve','Giancarlo Stanton'],
+    2018:['Mookie Betts','Christian Yelich'],2019:['Mike Trout','Cody Bellinger'],
+    2020:['Jose Abreu','Freddie Freeman'],2021:['Shohei Ohtani','Bryce Harper'],
+    2022:['Shohei Ohtani','Paul Goldschmidt'],2023:['Shohei Ohtani','Ronald Acuna Jr.'],
+    2024:['Aaron Judge','Shohei Ohtani'],
+  };
+
+  const MLB_CY_YOUNG = {
+    1956:['Don Newcombe'],1957:['Warren Spahn'],1958:['Bob Turley'],
+    1959:['Early Wynn'],1960:['Vern Law'],1961:['Whitey Ford'],
+    1962:['Don Drysdale'],1963:['Sandy Koufax'],1964:['Dean Chance'],
+    1965:['Sandy Koufax'],1966:['Sandy Koufax'],
+    1967:['Jim Lonborg','Mike McCormick'],1968:['Denny McLain','Bob Gibson'],
+    1969:['Mike Cuellar','Denny McLain','Tom Seaver'],1970:['Jim Perry','Bob Gibson'],
+    1971:['Vida Blue','Ferguson Jenkins'],1972:['Gaylord Perry','Steve Carlton'],
+    1973:['Jim Palmer','Tom Seaver'],1974:['Catfish Hunter','Mike Marshall'],
+    1975:['Jim Palmer','Tom Seaver'],1976:['Jim Palmer','Randy Jones'],
+    1977:['Sparky Lyle','Steve Carlton'],1978:['Ron Guidry','Gaylord Perry'],
+    1979:['Mike Flanagan','Bruce Sutter'],1980:['Steve Stone','Steve Carlton'],
+    1981:['Rollie Fingers','Fernando Valenzuela'],1982:['Pete Vuckovich','Steve Carlton'],
+    1983:['LaMarr Hoyt','John Denny'],1984:['Willie Hernandez','Rick Sutcliffe'],
+    1985:['Bret Saberhagen','Dwight Gooden'],1986:['Roger Clemens','Mike Scott'],
+    1987:['Roger Clemens','Steve Bedrosian'],1988:['Frank Viola','Orel Hershiser'],
+    1989:['Bret Saberhagen','Mark Davis'],1990:['Bob Welch','Doug Drabek'],
+    1991:['Roger Clemens','Tom Glavine'],1992:['Dennis Eckersley','Greg Maddux'],
+    1993:['Jack McDowell','Greg Maddux'],1994:['David Cone','Greg Maddux'],
+    1995:['Randy Johnson','Greg Maddux'],1996:['Pat Hentgen','John Smoltz'],
+    1997:['Roger Clemens','Pedro Martinez'],1998:['Roger Clemens','Tom Glavine'],
+    1999:['Pedro Martinez','Randy Johnson'],2000:['Pedro Martinez','Randy Johnson'],
+    2001:['Roger Clemens','Randy Johnson'],2002:['Barry Zito','Randy Johnson'],
+    2003:['Roy Halladay','Eric Gagne'],2004:['Johan Santana','Roger Clemens'],
+    2005:['Bartolo Colon','Chris Carpenter'],2006:['Johan Santana','Brandon Webb'],
+    2007:['CC Sabathia','Jake Peavy'],2008:['Cliff Lee','Tim Lincecum'],
+    2009:['Zack Greinke','Tim Lincecum'],2010:['Felix Hernandez','Roy Halladay'],
+    2011:['Justin Verlander','Clayton Kershaw'],2012:['David Price','R.A. Dickey'],
+    2013:['Max Scherzer','Clayton Kershaw'],2014:['Corey Kluber','Clayton Kershaw'],
+    2015:['Dallas Keuchel','Jake Arrieta'],2016:['Rick Porcello','Max Scherzer'],
+    2017:['Corey Kluber','Max Scherzer'],2018:['Blake Snell','Jacob deGrom'],
+    2019:['Justin Verlander','Jacob deGrom'],2020:['Shane Bieber','Trevor Bauer'],
+    2021:['Robbie Ray','Corbin Burnes'],2022:['Justin Verlander','Sandy Alcantara'],
+    2023:['Gerrit Cole','Blake Snell'],2024:['Tarik Skubal','Chris Sale'],
+  };
+
+  function mlbNormName(s) {
+    return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z ]/g,'');
+  }
+
+  function mlbChamp(season, teamId) { return MLB_WS_CHAMPIONS[parseInt(season)] === teamId; }
+  function mlbMvp(season, name)     { return (MLB_MVP[parseInt(season)]||[]).some(n => mlbNormName(n)===mlbNormName(name)); }
+  function mlbCyYoung(season, name) { return (MLB_CY_YOUNG[parseInt(season)]||[]).some(n => mlbNormName(n)===mlbNormName(name)); }
+
+  const MLB_HITTER_STATS = [
+    { key:'avg', label:'AVG', decimals:3 },
+    { key:'hr',  label:'HR' },
+    { key:'rbi', label:'RBI' },
+    { key:'ops', label:'OPS', decimals:3 },
+    { key:'obp', label:'OBP', decimals:3 },
+    { key:'slg', label:'SLG', decimals:3 },
+    { key:'sb',  label:'SB' },
+    { key:'ab',  label:'AB' },
+    { key:'hits',label:'H' },
+    { key:'gp',  label:'GP' },
+  ];
+
+  const MLB_PITCHER_STATS = [
+    { key:'era',  label:'ERA',  decimals:2, lowerBetter:true },
+    { key:'so',   label:'SO' },
+    { key:'whip', label:'WHIP', decimals:2, lowerBetter:true },
+    { key:'w',    label:'W' },
+    { key:'ip',   label:'IP', decimals:1 },
+    { key:'gs',   label:'GS' },
+    { key:'sv',   label:'SV' },
+    { key:'l',    label:'L', lowerBetter:true },
+    { key:'gp',   label:'GP' },
+  ];
+
+  const mlbState = { 0: null, 1: null };
+  let mlbMode = 'hitter';
+  let mlbViewMode = 'age';
+  let mlbSelectedStat = MLB_HITTER_STATS[0];
+  let mlbLastP1Wins = true;
+
+  const MLB_H_DEFAULTS = { wHr:1.5, wRbi:1.0, wOps:1.0, wAvg:0.5, wStat:70,wMvp:20,wChamp:10,wCareer:70,wPeak:20,wLon:10 };
+  const MLB_P_DEFAULTS = { pSo:1.0, pEra:1.5, pWhip:1.0,           wStat:70,wMvp:20,wChamp:10,wCareer:70,wPeak:20,wLon:10 };
+  const mlbConfig = { ...MLB_H_DEFAULTS };
+
+  function mlbHitterComposite(s) {
+    const hr  = +(s.hr)  || 0;
+    const rbi = +(s.rbi) || 0;
+    const ops = parseFloat(s.ops) || 0;
+    const avg = parseFloat(s.avg) || 0;
+    return mlbConfig.wHr  * hr
+         + mlbConfig.wRbi * rbi * 0.25
+         + mlbConfig.wOps * ops * 100
+         + mlbConfig.wAvg * avg * 150;
+  }
+
+  function mlbPitcherComposite(s) {
+    const so   = +(s.so) || 0;
+    const era  = parseFloat(s.era)  || 0;
+    const whip = parseFloat(s.whip) || 0;
+    return mlbConfig.pSo   * so
+         - mlbConfig.pEra  * era  * 30
+         - mlbConfig.pWhip * whip * 80;
+  }
+
+  function mlbSeasonComposite(s) {
+    return mlbMode === 'pitcher' ? mlbPitcherComposite(s) : mlbHitterComposite(s);
+  }
+
+  function mlbByAgeMap(seasons) {
+    const map = {};
+    for (const s of seasons) {
+      if (!s.age) continue;
+      const gp = mlbMode === 'pitcher' ? (s.ip || 0) : (s.gp || 0);
+      const cur = mlbMode === 'pitcher' ? (map[s.age]?.ip || 0) : (map[s.age]?.gp || 0);
+      if (!map[s.age] || gp > cur) map[s.age] = s;
+    }
+    return map;
+  }
+
+  function mlbNorm(a, b) { const t = a+b; return t > 0 ? [a/t*100, b/t*100] : [50,50]; }
+
+  function mlbRunAnalysis(p1, p2) {
+    const isPitcher = mlbMode === 'pitcher';
+    const awardFn = isPitcher ? mlbCyYoung : mlbMvp;
+
+    const award1 = p1.seasons.filter(s => awardFn(s.season, p1.name)).length;
+    const award2 = p2.seasons.filter(s => awardFn(s.season, p2.name)).length;
+    const champ1 = p1.seasons.filter(s => mlbChamp(s.season, s.team_id)).length;
+    const champ2 = p2.seasons.filter(s => mlbChamp(s.season, s.team_id)).length;
+
+    const weight1 = s => isPitcher ? (s.ip || 0) : (s.gp || 0);
+
+    function careerAvg(seasons) {
+      let tv = 0, tw = 0;
+      for (const s of seasons) { const w = weight1(s); if (!w) continue; tv += mlbSeasonComposite(s)*w; tw += w; }
+      return tw > 0 ? tv/tw : 0;
+    }
+    const career1 = careerAvg(p1.seasons), career2 = careerAvg(p2.seasons);
+
+    function peakAvg(seasons) {
+      const vals = seasons.map(mlbSeasonComposite).sort((a,b)=>b-a).slice(0,5);
+      return vals.reduce((a,b)=>a+b,0) / (vals.length||1);
+    }
+    const peak1 = peakAvg(p1.seasons), peak2 = peakAvg(p2.seasons);
+
+    const am1 = mlbByAgeMap(p1.seasons), am2 = mlbByAgeMap(p2.seasons);
+
+    const unc1 = Object.keys(am1).filter(a => !am2[a]).length;
+    const unc2 = Object.keys(am2).filter(a => !am1[a]).length;
+    const [uncS1, uncS2] = mlbNorm(unc1, unc2);
+
+    const tv1 = p1.seasons.reduce((s,r) => s + mlbSeasonComposite(r)*(weight1(r)||0), 0);
+    const tv2 = p2.seasons.reduce((s,r) => s + mlbSeasonComposite(r)*(weight1(r)||0), 0);
+    const [tvS1, tvS2] = mlbNorm(tv1, tv2);
+
+    const allVals = [...p1.seasons,...p2.seasons].map(mlbSeasonComposite).sort((a,b)=>a-b);
+    const median = allVals[Math.floor(allVals.length/2)];
+    const elite1 = p1.seasons.filter(s => mlbSeasonComposite(s) > median).length;
+    const elite2 = p2.seasons.filter(s => mlbSeasonComposite(s) > median).length;
+    const [elS1, elS2] = mlbNorm(elite1, elite2);
+
+    const lon1 = (uncS1+tvS1+elS1)/3, lon2 = (uncS2+tvS2+elS2)/3;
+
+    const [cS1,cS2] = mlbNorm(career1,career2);
+    const [pS1,pS2] = mlbNorm(peak1,peak2);
+    const subT = mlbConfig.wCareer+mlbConfig.wPeak+mlbConfig.wLon || 1;
+    const stat1 = cS1*(mlbConfig.wCareer/subT)+pS1*(mlbConfig.wPeak/subT)+lon1*(mlbConfig.wLon/subT);
+    const stat2 = cS2*(mlbConfig.wCareer/subT)+pS2*(mlbConfig.wPeak/subT)+lon2*(mlbConfig.wLon/subT);
+
+    const [awS1,awS2]  = mlbNorm(award1,award2);
+    const [chS1,chS2]  = mlbNorm(champ1,champ2);
+
+    const compT = mlbConfig.wStat+mlbConfig.wMvp+mlbConfig.wChamp || 1;
+    const final1 = stat1*(mlbConfig.wStat/compT)+awS1*(mlbConfig.wMvp/compT)+chS1*(mlbConfig.wChamp/compT);
+    const final2 = stat2*(mlbConfig.wStat/compT)+awS2*(mlbConfig.wMvp/compT)+chS2*(mlbConfig.wChamp/compT);
+
+    return {
+      final1, final2,
+      stat:  { score1:stat1,score2:stat2,career1,career2,peak1,peak2,lon1,lon2,unc1,unc2,elite1,elite2 },
+      award: { label:isPitcher?'Cy Young':'MVP',count1:award1,count2:award2,score1:awS1,score2:awS2 },
+      champ: { count1:champ1,count2:champ2,score1:chS1,score2:chS2 },
+    };
+  }
+
+  function mlbApplyWinnerColors(p1Wins) {
+    const win='#4ade80',lose='#ef4444';
+    const s0=document.getElementById('mlb-sel-0'), s1=document.getElementById('mlb-sel-1');
+    s0.classList.toggle('name-winner',p1Wins);  s0.classList.toggle('name-loser',!p1Wins);
+    s1.classList.toggle('name-winner',!p1Wins); s1.classList.toggle('name-loser',p1Wins);
+    const lp1=document.getElementById('mlb-legend-p1'), lp2=document.getElementById('mlb-legend-p2');
+    if(lp1) lp1.style.color = p1Wins?win:lose;
+    if(lp2) lp2.style.color = p1Wins?lose:win;
+    document.querySelectorAll('#mlb-table-wrap th.p1-head').forEach(el=>el.style.color=p1Wins?win:lose);
+    document.querySelectorAll('#mlb-table-wrap th.p2-head').forEach(el=>el.style.color=p1Wins?lose:win);
+  }
+
+  function mlbRenderAnalysis(p1, p2) {
+    const el = document.getElementById('mlb-analysis');
+    if (!p1?.seasons || !p2?.seasons) { el.innerHTML=''; return; }
+
+    const a = mlbRunAnalysis(p1, p2);
+    const diff = Math.abs(a.final1-a.final2);
+    const p1wins = a.final1 >= a.final2;
+    const winnerName = p1wins ? p1.name : p2.name;
+
+    let verdict;
+    if (diff < 3)      verdict = `Both players are essentially equal`;
+    else if (diff < 8) verdict = `<span class="verdict-name">${winnerName}</span> has a slight edge`;
+    else               verdict = `<span class="verdict-name">${winnerName}</span> appears to be the stronger player`;
+
+    function section(title, s1, s2, detail) {
+      const w1 = Math.max(0,Math.min(100,s1)).toFixed(0);
+      const w2 = Math.max(0,Math.min(100,s2)).toFixed(0);
+      const tied = Math.abs(s1-s2)<0.05;
+      const c1 = tied?'#3b82f6':s1>s2?'#4ade80':'#ef4444';
+      const c2 = tied?'#ec4899':s2>s1?'#4ade80':'#ef4444';
+      const g1 = tied?'linear-gradient(90deg,#1d4ed8,#3b82f6)':s1>s2?'linear-gradient(90deg,#166534,#4ade80)':'linear-gradient(90deg,#7f1d1d,#ef4444)';
+      const g2 = tied?'linear-gradient(90deg,#ec4899,#be185d)':s2>s1?'linear-gradient(90deg,#166534,#4ade80)':'linear-gradient(90deg,#7f1d1d,#ef4444)';
+      return `<div class="a-section">
+        <div class="a-title">${title}</div>
+        <div class="a-bar-wrap">
+          <div class="a-bar-name" style="color:${c1};text-align:right;width:80px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p1.name.split(' ').pop()}</div>
+          <div class="a-bar-track">
+            <div class="a-bar-p1" style="width:${w1}%;background:${g1}"></div>
+            <div class="a-bar-p2" style="width:${w2}%;background:${g2}"></div>
+          </div>
+          <div class="a-bar-name" style="color:${c2};width:80px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p2.name.split(' ').pop()}</div>
+        </div>
+        <div class="a-bar-scores">
+          <span style="color:${c1};font-weight:600;">${s1.toFixed(1)}</span>
+          <span class="a-detail">${detail}</span>
+          <span style="color:${c2};font-weight:600;">${s2.toFixed(1)}</span>
+        </div>
+      </div>`;
+    }
+
+    const wasOpen = document.getElementById('mlb-analysis-detail')?.classList.contains('open');
+    el.innerHTML = `<div class="analysis-card">
+      <div class="verdict">
+        <span>🔬 Verdict: ${verdict}</span>
+        <button class="analysis-expand-btn" onclick="mlbToggleAnalysisDetail(this)">${wasOpen?'▲ Less':'▼ More'}</button>
+      </div>
+      ${section('Overall Score',a.final1,a.final2,'')}
+      <div class="cwi-wrap">
+        <div class="cwi-title">Scoring Weights</div>
+        <div class="cwi-row"><span class="cwi-lbl">Stats</span><input type="range" class="sw" id="mlb-w-stat" min="0" max="100" step="5" value="${mlbConfig.wStat}" oninput="mlbAdjustLinked(this.id,['mlb-w-stat','mlb-w-mvp','mlb-w-champ'])"><span class="cwi-val" id="mlb-v-stat">${mlbConfig.wStat}%</span></div>
+        <div class="cwi-row"><span class="cwi-lbl">${a.award.label}</span><input type="range" class="sw" id="mlb-w-mvp" min="0" max="100" step="5" value="${mlbConfig.wMvp}" oninput="mlbAdjustLinked(this.id,['mlb-w-stat','mlb-w-mvp','mlb-w-champ'])"><span class="cwi-val" id="mlb-v-mvp">${mlbConfig.wMvp}%</span></div>
+        <div class="cwi-row"><span class="cwi-lbl">WS Rings</span><input type="range" class="sw" id="mlb-w-champ" min="0" max="100" step="5" value="${mlbConfig.wChamp}" oninput="mlbAdjustLinked(this.id,['mlb-w-stat','mlb-w-mvp','mlb-w-champ'])"><span class="cwi-val" id="mlb-v-champ">${mlbConfig.wChamp}%</span></div>
+        <div class="cwi-note">Always sums to 100%</div>
+      </div>
+      <div id="mlb-analysis-detail" class="${wasOpen?'open':''}">
+        ${section('Statistical Performance',a.stat.score1,a.stat.score2,
+          `career ${a.stat.career1.toFixed(1)} vs ${a.stat.career2.toFixed(1)} · peak ${a.stat.peak1.toFixed(1)} vs ${a.stat.peak2.toFixed(1)} · longevity ${a.stat.lon1.toFixed(1)} vs ${a.stat.lon2.toFixed(1)}`)}
+        ${section(`${a.award.label} Awards`,a.award.score1,a.award.score2,
+          `${a.award.count1} vs ${a.award.count2}`)}
+        ${section('World Series Rings',a.champ.score1,a.champ.score2,
+          `${a.champ.count1} ring${a.champ.count1!==1?'s':''} vs ${a.champ.count2} ring${a.champ.count2!==1?'s':''}`)}
+      </div>
+    </div>`;
+
+    const sw = document.getElementById('mlb-settings-wrap');
+    sw.style.display = 'block';
+    mlbLastP1Wins = p1wins;
+    mlbApplyWinnerColors(p1wins);
+  }
+
+  function mlbToggleAnalysisDetail(btn) {
+    const detail = document.getElementById('mlb-analysis-detail');
+    const open = detail.classList.toggle('open');
+    btn.textContent = open ? '▲ Less' : '▼ More';
+  }
+
+  function mlbToggleSettings() {
+    const panel = document.getElementById('mlb-settings-panel');
+    const arrow = document.getElementById('mlb-settings-arrow');
+    const open = panel.style.display === 'block';
+    panel.style.display = open ? 'none' : 'block';
+    arrow.textContent = open ? '▶' : '▼';
+  }
+
+  function mlbResetWeights() {
+    const D = mlbMode === 'pitcher' ? MLB_P_DEFAULTS : MLB_H_DEFAULTS;
+    Object.assign(mlbConfig, D);
+    if (mlbMode === 'hitter') {
+      document.getElementById('mlb-w-hr').value  = D.wHr;
+      document.getElementById('mlb-w-rbi').value = D.wRbi;
+      document.getElementById('mlb-w-ops').value = D.wOps;
+      document.getElementById('mlb-w-avg').value = D.wAvg;
+    } else {
+      document.getElementById('mlb-w-so').value   = D.pSo;
+      document.getElementById('mlb-w-era').value  = D.pEra;
+      document.getElementById('mlb-w-whip').value = D.pWhip;
+    }
+    document.getElementById('mlb-w-career').value = D.wCareer;
+    document.getElementById('mlb-w-peak').value   = D.wPeak;
+    document.getElementById('mlb-w-lon').value    = D.wLon;
+    mlbUpdateWeights();
+  }
+
+  function mlbUpdateWeights() {
+    if (mlbMode === 'hitter') {
+      mlbConfig.wHr  = +document.getElementById('mlb-w-hr').value;
+      mlbConfig.wRbi = +document.getElementById('mlb-w-rbi').value;
+      mlbConfig.wOps = +document.getElementById('mlb-w-ops').value;
+      mlbConfig.wAvg = +document.getElementById('mlb-w-avg').value;
+      document.getElementById('mlb-v-hr').textContent  = mlbConfig.wHr.toFixed(1)+'×';
+      document.getElementById('mlb-v-rbi').textContent = mlbConfig.wRbi.toFixed(1)+'×';
+      document.getElementById('mlb-v-ops').textContent = mlbConfig.wOps.toFixed(1)+'×';
+      document.getElementById('mlb-v-avg').textContent = mlbConfig.wAvg.toFixed(1)+'×';
+    } else {
+      mlbConfig.pSo   = +document.getElementById('mlb-w-so').value;
+      mlbConfig.pEra  = +document.getElementById('mlb-w-era').value;
+      mlbConfig.pWhip = +document.getElementById('mlb-w-whip').value;
+      document.getElementById('mlb-v-so').textContent   = mlbConfig.pSo.toFixed(1)+'×';
+      document.getElementById('mlb-v-era').textContent  = mlbConfig.pEra.toFixed(1)+'× pen';
+      document.getElementById('mlb-v-whip').textContent = mlbConfig.pWhip.toFixed(1)+'× pen';
+    }
+    mlbConfig.wCareer = +document.getElementById('mlb-w-career').value;
+    mlbConfig.wPeak   = +document.getElementById('mlb-w-peak').value;
+    mlbConfig.wLon    = +document.getElementById('mlb-w-lon').value;
+    document.getElementById('mlb-v-career').textContent = mlbConfig.wCareer+'%';
+    document.getElementById('mlb-v-peak').textContent   = mlbConfig.wPeak+'%';
+    document.getElementById('mlb-v-lon').textContent    = mlbConfig.wLon+'%';
+
+    const statEl = document.getElementById('mlb-w-stat');
+    if (statEl) {
+      mlbConfig.wStat  = +statEl.value;
+      mlbConfig.wMvp   = +document.getElementById('mlb-w-mvp').value;
+      mlbConfig.wChamp = +document.getElementById('mlb-w-champ').value;
+      document.getElementById('mlb-v-stat').textContent  = mlbConfig.wStat+'%';
+      document.getElementById('mlb-v-mvp').textContent   = mlbConfig.wMvp+'%';
+      document.getElementById('mlb-v-champ').textContent = mlbConfig.wChamp+'%';
+    }
+
+    const p1=mlbState[0], p2=mlbState[1];
+    if (p1?.seasons && p2?.seasons) { mlbRenderAnalysis(p1,p2); mlbRenderTable(); }
+  }
+
+  function mlbAdjustLinked(changedId, groupIds) {
+    const others = groupIds.filter(id => id !== changedId);
+    const val = +document.getElementById(changedId).value;
+    const remaining = 100-val;
+    const r5 = n => Math.round(n/5)*5;
+    const otherVals = others.map(id => +document.getElementById(id).value);
+    const total = otherVals.reduce((a,b)=>a+b,0);
+    let dist = total===0 ? others.map(()=>r5(remaining/others.length)) : otherVals.map(v=>r5(remaining*v/total));
+    const gap = remaining-dist.reduce((a,b)=>a+b,0);
+    dist[dist.length-1] += gap;
+    others.forEach((id,i) => document.getElementById(id).value = dist[i]);
+    mlbUpdateWeights();
+  }
+
+  function mlbFmtVal(v, stat) {
+    if (v == null || v === '' || v === '-.--') return null;
+    const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+    if (isNaN(n)) return null;
+    if (stat.decimals != null) {
+      const s = n.toFixed(stat.decimals);
+      return (n < 1 && n > -1) ? s.replace(/^-?0\./, n<0?'-.':'.') : s;
+    }
+    return String(Math.round(n));
+  }
+
+  function mlbBuildRow(key, s1, s2, p1name, p2name) {
+    const raw1 = s1 ? s1[mlbSelectedStat.key] : null;
+    const raw2 = s2 ? s2[mlbSelectedStat.key] : null;
+    const n1 = (raw1!=null&&raw1!=='') ? (typeof raw1==='string'?parseFloat(raw1):Number(raw1)) : null;
+    const n2 = (raw2!=null&&raw2!=='') ? (typeof raw2==='string'?parseFloat(raw2):Number(raw2)) : null;
+    const d1 = (n1!=null&&!isNaN(n1)) ? mlbFmtVal(raw1, mlbSelectedStat) : null;
+    const d2 = (n2!=null&&!isNaN(n2)) ? mlbFmtVal(raw2, mlbSelectedStat) : null;
+
+    const lowerBetter = !!mlbSelectedStat.lowerBetter;
+    let diffText='', diffClass='diff-zero', winP1=false, winP2=false;
+    if (d1!=null && d2!=null) {
+      const diff = n1-n2;
+      const absDiff = mlbSelectedStat.decimals!=null ? Math.abs(diff).toFixed(mlbSelectedStat.decimals) : Math.abs(diff);
+      diffText = diff===0?'Tied':`${diff>0?'+':'-'}${absDiff}`;
+      const actualWin = lowerBetter ? diff<0 : diff>0;
+      const actualLose = lowerBetter ? diff>0 : diff<0;
+      diffClass = actualWin?'diff-p1':actualLose?'diff-p2':'diff-zero';
+      winP1 = actualWin; winP2 = actualLose;
+    }
+
+    const rowClass = winP1?'row-win-p1':winP2?'row-win-p2':'';
+    const cls1 = `ppg ppg-p1${winP1?' winner':winP2?' loser':''}`;
+    const cls2 = `ppg ppg-p2${winP2?' winner':winP1?' loser':''}`;
+
+    const ring1 = s1 && mlbChamp(s1.season,s1.team_id) ? ' 🏆' : '';
+    const ring2 = s2 && mlbChamp(s2.season,s2.team_id) ? ' 🏆' : '';
+    const isPitcher = mlbMode === 'pitcher';
+    const aw1 = s1 && (isPitcher?mlbCyYoung(s1.season,p1name):mlbMvp(s1.season,p1name)) ? ' 🏅' : '';
+    const aw2 = s2 && (isPitcher?mlbCyYoung(s2.season,p2name):mlbMvp(s2.season,p2name)) ? ' 🏅' : '';
+
+    function sub1(s) {
+      if (!s) return '';
+      const abbr = mlbTeamAbbr(s.team_id);
+      if (isPitcher) return `${s.season} · ${abbr}${ring1}${aw1} · ${s.ip}IP`;
+      return `${s.season} · ${abbr}${ring1}${aw1} · ${s.gp}g`;
+    }
+    function sub2(s) {
+      if (!s) return '';
+      const abbr = mlbTeamAbbr(s.team_id);
+      if (isPitcher) return `${s.season} · ${abbr}${ring2}${aw2} · ${s.ip}IP`;
+      return `${s.season} · ${abbr}${ring2}${aw2} · ${s.gp}g`;
+    }
+
+    function ctx(s, isPitch) {
+      if (!s || mlbSelectedStat.key === (isPitch?'era':'avg')) return '';
+      if (isPitch) {
+        const so = +(s.so)||0, whip = parseFloat(s.whip)||0;
+        return `<br><span class="stat-context">${so} SO · ${whip.toFixed(2)} WHIP</span>`;
+      } else {
+        const hr = +(s.hr)||0, rbi = +(s.rbi)||0;
+        return `<br><span class="stat-context">${hr} HR · ${rbi} RBI</span>`;
+      }
+    }
+
+    const cell1 = d1!=null
+      ? `<td class="${cls1}">${d1}${ctx(s1,isPitcher)}<br><span class="sub-info">${sub1(s1)}</span></td>`
+      : `<td class="no-data">—</td>`;
+    const cell2 = d2!=null
+      ? `<td class="${cls2}">${d2}${ctx(s2,isPitcher)}<br><span class="sub-info">${sub2(s2)}</span></td>`
+      : `<td class="no-data">—</td>`;
+
+    return `<tr class="${rowClass}"><td>${key}</td>${cell1}${cell2}<td class="diff ${diffClass}">${diffText}</td></tr>`;
+  }
+
+  function mlbRenderTable() {
+    const comp = document.getElementById('mlb-comparison');
+    const wrap = document.getElementById('mlb-table-wrap');
+    const p1=mlbState[0], p2=mlbState[1];
+    if (!p1 && !p2) { comp.style.display='none'; return; }
+    comp.style.display='block';
+    if (!p1||!p2||p1.seasons===null||p2.seasons===null) {
+      wrap.innerHTML='<div class="loading-msg">Loading career stats...</div>'; return;
+    }
+    if (p1.error||p2.error) {
+      wrap.innerHTML=`<div class="loading-msg">Failed to load stats. Try selecting again.</div>`; return;
+    }
+    mlbRenderAnalysis(p1,p2);
+    if (mlbViewMode==='season') mlbRenderBySeason(wrap,p1,p2);
+    else mlbRenderByAge(wrap,p1,p2);
+  }
+
+  function mlbRenderBySeason(wrap, p1, p2) {
+    const allSeasons=[...new Set([...p1.seasons.map(s=>s.season),...p2.seasons.map(s=>s.season)])].sort();
+    const m1=Object.fromEntries(p1.seasons.map(s=>[s.season,s]));
+    const m2=Object.fromEntries(p2.seasons.map(s=>[s.season,s]));
+    const rows=allSeasons.map(yr=>mlbBuildRow(yr,m1[yr]||null,m2[yr]||null,p1.name,p2.name)).join('');
+    wrap.innerHTML=tableHTML(p1.name,p2.name,'Season',rows);
+    mlbApplyWinnerColors(mlbLastP1Wins);
+  }
+
+  function mlbRenderByAge(wrap, p1, p2) {
+    const allAges=new Set([...p1.seasons.map(s=>s.age).filter(Boolean),...p2.seasons.map(s=>s.age).filter(Boolean)]);
+    const sorted=[...allAges].sort((a,b)=>a-b);
+    const m1=mlbByAgeMap(p1.seasons), m2=mlbByAgeMap(p2.seasons);
+    const rows=sorted.map(age=>mlbBuildRow(`Age ${age}`,m1[age]||null,m2[age]||null,p1.name,p2.name)).join('');
+    const sub=`<p style="font-size:0.78rem;color:#64748b;margin-bottom:10px;">e.g. "Age 26" shows each player's season when they were 26</p>`;
+    wrap.innerHTML=sub+tableHTML(p1.name,p2.name,'Age',rows);
+    mlbApplyWinnerColors(mlbLastP1Wins);
+  }
+
+  function mlbSetStat(key) {
+    const stats = mlbMode==='pitcher' ? MLB_PITCHER_STATS : MLB_HITTER_STATS;
+    mlbSelectedStat = stats.find(s=>s.key===key) || stats[0];
+    const viewLabel = mlbViewMode==='season'?'Season-by-Season':'By Age';
+    document.getElementById('mlb-table-title').textContent=`${viewLabel} ${mlbSelectedStat.label}`;
+    mlbRenderTable();
+  }
+
+  function mlbSetView(mode) {
+    mlbViewMode=mode;
+    document.getElementById('mlb-btn-season').classList.toggle('active',mode==='season');
+    document.getElementById('mlb-btn-age').classList.toggle('active',mode==='age');
+    const viewLabel=mode==='season'?'Season-by-Season':'By Age';
+    document.getElementById('mlb-table-title').textContent=`${viewLabel} ${mlbSelectedStat.label}`;
+    mlbRenderTable();
+  }
+
+  function mlbSetMode(mode) {
+    mlbMode=mode;
+    document.getElementById('mlb-btn-hitter').classList.toggle('active',mode==='hitter');
+    document.getElementById('mlb-btn-pitcher').classList.toggle('active',mode==='pitcher');
+    document.getElementById('mlb-hitter-weights').style.display=mode==='hitter'?'':'none';
+    document.getElementById('mlb-pitcher-weights').style.display=mode==='pitcher'?'':'none';
+
+    const stats = mode==='pitcher' ? MLB_PITCHER_STATS : MLB_HITTER_STATS;
+    mlbSelectedStat = stats[0];
+    const sel=document.getElementById('mlb-stat-select');
+    sel.innerHTML=stats.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
+
+    // Reset state and UI
+    mlbState[0]=null; mlbState[1]=null;
+    [0,1].forEach(i => {
+      document.getElementById(`mlb-input-${i}`).value='';
+      document.getElementById(`mlb-sel-${i}`).textContent='';
+      document.getElementById(`mlb-sel-${i}`).className='selected-name';
+      document.getElementById(`mlb-stats-${i}`).innerHTML='';
+    });
+    document.getElementById('mlb-legend-p1').textContent='Player 1';
+    document.getElementById('mlb-legend-p2').textContent='Player 2';
+    document.getElementById('mlb-analysis').innerHTML='';
+    document.getElementById('mlb-settings-wrap').style.display='none';
+    document.getElementById('mlb-comparison').style.display='none';
+
+    const D = mode==='pitcher' ? MLB_P_DEFAULTS : MLB_H_DEFAULTS;
+    Object.assign(mlbConfig, D);
+  }
+
+  function mlbUpdatePlayerLabel(idx, p) {
+    const el=document.getElementById(`mlb-sel-${idx}`);
+    const st=document.getElementById(`mlb-stats-${idx}`);
+    if (!p?.seasons) { el.textContent=p?.name||''; st.innerHTML=''; return; }
+
+    const isPitcher = mlbMode==='pitcher';
+    const ringCount = p.seasons.filter(s=>mlbChamp(s.season,s.team_id)).length;
+    const awardCount = p.seasons.filter(s=>isPitcher?mlbCyYoung(s.season,p.name):mlbMvp(s.season,p.name)).length;
+    const badges=[];
+    if (ringCount>0) badges.push(`🏆 ${ringCount}`);
+    if (awardCount>0) badges.push(`🏅 ${awardCount}`);
+    el.innerHTML=`<span>${p.name}</span>`+badges.map(b=>`<span class="player-badge">${b}</span>`).join('');
+
+    if (isPitcher) {
+      let tIp=0, tSo=0, tEraW=0, tWhipW=0;
+      for (const s of p.seasons) {
+        const ip=s.ip||0; if(!ip) continue;
+        tIp+=ip; tSo+=(+(s.so)||0)*ip;
+        const era=parseFloat(s.era)||0, whip=parseFloat(s.whip)||0;
+        tEraW+=era*ip; tWhipW+=whip*ip;
+      }
+      if (tIp===0) { st.innerHTML=''; return; }
+      const chips=[['ERA',(tEraW/tIp).toFixed(2)],['SO',Math.round(tSo/tIp*9)+'per9'],['WHIP',(tWhipW/tIp).toFixed(2)]];
+      st.innerHTML=chips.map(([l,v])=>`<span class="player-stat-chip"><span>${v}</span> ${l}</span>`).join('');
+    } else {
+      let tG=0, tHr=0, tRbi=0, tOpsW=0, tAvgAb=0, tHits=0, tAb=0;
+      for (const s of p.seasons) {
+        const g=+(s.gp)||0; if(!g) continue;
+        tG+=g; tHr+=(+(s.hr)||0); tRbi+=(+(s.rbi)||0);
+        const ab=+(s.ab)||0; const ops=parseFloat(s.ops)||0;
+        tOpsW+=ops*g; tHits+=(+(s.hits)||0); tAb+=ab;
+      }
+      if (tG===0) { st.innerHTML=''; return; }
+      const avgStr = tAb>0 ? (tHits/tAb).toFixed(3).replace(/^0\./,'.') : '.---';
+      const opsStr = (tOpsW/tG).toFixed(3);
+      const chips=[['AVG',avgStr],['HR',tHr],['RBI',tRbi],['OPS',opsStr]];
+      st.innerHTML=chips.map(([l,v])=>`<span class="player-stat-chip"><span>${v}</span> ${l}</span>`).join('');
+    }
+  }
+
+  async function mlbSelectPlayer(idx, id, name) {
+    const selEl=document.getElementById(`mlb-sel-${idx}`);
+    selEl.textContent=name;
+    selEl.classList.remove('name-winner','name-loser');
+    document.getElementById(`mlb-stats-${idx}`).innerHTML='';
+    document.getElementById(`mlb-legend-p${idx+1}`).textContent=name;
+    mlbState[idx]={id,name,seasons:null,error:false};
+    mlbRenderTable();
+
+    const endpoint = mlbMode==='pitcher' ? 'pitching' : 'hitting';
+    try {
+      const r=await fetch(`/api/mlb/career/${endpoint}/${id}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data=await r.json();
+      if (mlbState[idx]?.id===id) {
+        mlbState[idx]={...mlbState[idx], ...data, error:false};
+        mlbUpdatePlayerLabel(idx, mlbState[idx]);
+        mlbRenderTable();
+      }
+    } catch(e) {
+      if (mlbState[idx]?.id===id) { mlbState[idx].seasons=[]; mlbState[idx].error=true; mlbRenderTable(); }
+    }
+  }
+
+  async function mlbDoSearch(q, dd, input, idx) {
+    try {
+      const r=await fetch(`/api/mlb/players?q=${encodeURIComponent(q)}`);
+      const list=await r.json();
+      if (!list.length) { dd.innerHTML=''; dd.classList.remove('open'); return; }
+      dd.innerHTML=list.map(p=>
+        `<div class="opt" data-id="${p.id}" data-name="${p.name}">
+          <span>${p.name}</span><span class="opt-team">${p.position||''}</span>
+        </div>`
+      ).join('');
+      dd.classList.add('open');
+      dd.querySelectorAll('.opt').forEach(el=>{
+        el.addEventListener('mousedown',()=>{
+          dd.classList.remove('open');
+          input.value='';
+          mlbSelectPlayer(idx,el.dataset.id,el.dataset.name);
+        });
+      });
+    } catch(e) { dd.innerHTML=''; dd.classList.remove('open'); }
+  }
+
+  // Wire MLB searches
+  [0,1].forEach(idx => {
+    const input=document.getElementById(`mlb-input-${idx}`);
+    const dd=document.getElementById(`mlb-dd-${idx}`);
+    let timer;
+    input.addEventListener('input',()=>{
+      clearTimeout(timer);
+      const q=input.value.trim();
+      if(!q){dd.innerHTML='';dd.classList.remove('open');return;}
+      timer=setTimeout(()=>mlbDoSearch(q,dd,input,idx),300);
+    });
+    input.addEventListener('blur',()=>setTimeout(()=>dd.classList.remove('open'),150));
+  });
+
+  // Init MLB stat select options
+  (function() {
+    const sel=document.getElementById('mlb-stat-select');
+    sel.innerHTML=MLB_HITTER_STATS.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
+    sel.onchange=function(){ mlbSetStat(this.value); };
+  })();
+</script>
+</body>
+</html>
