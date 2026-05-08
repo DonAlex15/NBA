@@ -3,7 +3,7 @@ const axios = require('axios');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const NBA_HEADERS = {
   'Accept': 'application/json, text/plain, */*',
@@ -35,12 +35,99 @@ function currentSeason() {
   return (now.getMonth() + 1) >= 10 ? `${y}-${String(y+1).slice(2)}` : `${y-1}-${String(y).slice(2)}`;
 }
 
+// ---- balldontlie.io fallback (used when BALLDONTLIE_KEY env var is set) ----
+const BALLDONTLIE_KEY = process.env.BALLDONTLIE_KEY;
+
+function bdlGet(path, params = {}) {
+  return axios.get(`https://api.balldontlie.io/v1${path}`, {
+    params,
+    headers: { Authorization: BALLDONTLIE_KEY },
+    timeout: 12000,
+  });
+}
+
+function parseBdlMin(minStr) {
+  if (!minStr || minStr === '0:00') return 0;
+  const [m, s] = minStr.split(':').map(Number);
+  return m + (s || 0) / 60;
+}
+
+async function searchPlayersBDL(q) {
+  const r = await bdlGet('/players', { search: q, per_page: 10 });
+  return r.data.data.map(p => ({
+    id: p.id,
+    name: `${p.first_name} ${p.last_name}`,
+    team: p.team?.abbreviation || '',
+    active: true,
+  }));
+}
+
+async function careerStatsBDL(playerId) {
+  const playerR = await bdlGet(`/players/${playerId}`);
+  const player = playerR.data.data;
+  const startYear = player.draft_year || 2000;
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - startYear + 2 }, (_, i) => startYear + i);
+
+  const allSeasons = [];
+  for (let i = 0; i < years.length; i += 15) {
+    const batch = years.slice(i, i + 15);
+    const results = await Promise.all(
+      batch.map(year =>
+        bdlGet('/season_averages', { season: year, 'player_ids[]': playerId })
+          .then(r => r.data.data[0] ? { ...r.data.data[0] } : null)
+          .catch(() => null)
+      )
+    );
+    allSeasons.push(...results.filter(Boolean));
+  }
+
+  return allSeasons
+    .filter(s => (s.games_played || 0) > 0)
+    .map(s => ({
+      season:   `${s.season}-${String(s.season + 1).slice(2)}`,
+      team:     '',
+      team_id:  null,
+      age:      null,
+      gp:       s.games_played || 0,
+      gs:       0,
+      min:      parseBdlMin(s.min),
+      pts:      s.pts      || 0,
+      reb:      s.reb      || 0,
+      oreb:     s.oreb     || 0,
+      dreb:     s.dreb     || 0,
+      ast:      s.ast      || 0,
+      stl:      s.stl      || 0,
+      blk:      s.blk      || 0,
+      tov:      s.turnover || 0,
+      pf:       s.pf       || 0,
+      fgm:      s.fgm      || 0,
+      fga:      s.fga      || 0,
+      fg_pct:   s.fg_pct   || 0,
+      fg3m:     s.fg3m     || 0,
+      fg3a:     s.fg3a     || 0,
+      fg3_pct:  s.fg3_pct  || 0,
+      ftm:      s.ftm      || 0,
+      fta:      s.fta      || 0,
+      ft_pct:   s.ft_pct   || 0,
+    }));
+}
+
 // Serve the UI
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 // Search players
 app.get('/api/players', async (req, res) => {
   const q = (req.query.q || '').toLowerCase().trim();
+  if (BALLDONTLIE_KEY) {
+    if (!q) return res.json([]);
+    try {
+      const results = await searchPlayersBDL(q);
+      return res.json(results);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to fetch players' });
+    }
+  }
   try {
     const players = await cached('all-players', 24 * 3600 * 1000, async () => {
       const r = await axios.get('https://stats.nba.com/stats/commonallplayers', {
@@ -104,6 +191,14 @@ app.get('/api/ppg/:playerId', async (req, res) => {
 // Get career season-by-season PPG for a player
 app.get('/api/career/:playerId', async (req, res) => {
   const { playerId } = req.params;
+  if (BALLDONTLIE_KEY) {
+    try {
+      const seasons = await cached(`bdl-career-${playerId}`, 24 * 3600 * 1000, () => careerStatsBDL(playerId));
+      return res.json(seasons);
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to fetch career stats' });
+    }
+  }
   try {
     const seasons = await cached(`career-${playerId}`, 24 * 3600 * 1000, async () => {
       let r;
