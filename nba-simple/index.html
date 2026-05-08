@@ -954,22 +954,33 @@
   });
 
   async function doSearch(q, dd, input, idx) {
-    const r = await fetch(`/api/players?q=${encodeURIComponent(q)}`);
-    const list = await r.json();
-    if (!list.length) { dd.innerHTML = ''; dd.classList.remove('open'); return; }
-    dd.innerHTML = list.map(p =>
-      `<div class="opt" data-id="${p.id}" data-name="${p.name}" data-team="${p.team||''}">
-        <span>${p.name}</span><span class="opt-team">${p.team||'FA'}</span>
-      </div>`
-    ).join('');
-    dd.classList.add('open');
-    dd.querySelectorAll('.opt').forEach(el => {
-      el.addEventListener('mousedown', () => {
-        dd.classList.remove('open');
-        input.value = '';
-        selectPlayer(idx, el.dataset.id, el.dataset.name);
+    try {
+      const r = await fetch(`/api/players?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if (!r.ok) {
+        dd.innerHTML = `<div class="opt" style="color:#94a3b8;cursor:default;">${data.error || 'Search failed — try again'}</div>`;
+        dd.classList.add('open');
+        return;
+      }
+      const list = Array.isArray(data) ? data : [];
+      if (!list.length) { dd.innerHTML = ''; dd.classList.remove('open'); return; }
+      dd.innerHTML = list.map(p =>
+        `<div class="opt" data-id="${p.id}" data-name="${p.name}" data-team="${p.team||''}">
+          <span>${p.name}</span><span class="opt-team">${p.team||'FA'}</span>
+        </div>`
+      ).join('');
+      dd.classList.add('open');
+      dd.querySelectorAll('.opt').forEach(el => {
+        el.addEventListener('mousedown', () => {
+          dd.classList.remove('open');
+          input.value = '';
+          selectPlayer(idx, el.dataset.id, el.dataset.name);
+        });
       });
-    });
+    } catch (e) {
+      dd.innerHTML = '<div class="opt" style="color:#94a3b8;cursor:default;">Search failed — try again</div>';
+      dd.classList.add('open');
+    }
   }
 
   function updatePlayerLabel(idx, p) {

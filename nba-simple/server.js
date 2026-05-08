@@ -55,7 +55,7 @@ function parseBdlMin(minStr) {
 async function searchPlayersBDL(q) {
   const words = q.trim().split(/\s+/);
   // Search by first word so "Michael J" searches "Michael" and filters to matches
-  const r = await bdlGet('/players', { search: words[0], per_page: 50 });
+  const r = await bdlGet('/players', { search: words[0], per_page: 100 });
   let players = r.data.data;
   if (words.length > 1) {
     players = players.filter(p => {
@@ -74,13 +74,15 @@ async function searchPlayersBDL(q) {
 async function careerStatsBDL(playerId) {
   const playerR = await bdlGet(`/players/${playerId}`);
   const player = playerR.data.data;
-  const startYear = player.draft_year || 2000;
+  // Don't go before 1979 (reliable balldontlie data starts around then)
+  const startYear = Math.max(player.draft_year || 2000, 1979);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - startYear + 2 }, (_, i) => startYear + i);
 
   const allSeasons = [];
-  for (let i = 0; i < years.length; i += 15) {
-    const batch = years.slice(i, i + 15);
+  let consecutiveEmpty = 0;
+  for (let i = 0; i < years.length; i += 8) {
+    const batch = years.slice(i, i + 8);
     const results = await Promise.all(
       batch.map(year =>
         bdlGet('/season_averages', { season: year, 'player_ids[]': playerId })
@@ -88,7 +90,15 @@ async function careerStatsBDL(playerId) {
           .catch(() => null)
       )
     );
-    allSeasons.push(...results.filter(Boolean));
+    const batchData = results.filter(Boolean);
+    allSeasons.push(...batchData);
+    // Stop fetching if we've had 8+ consecutive years with no data (player retired)
+    if (batchData.length === 0) {
+      consecutiveEmpty += batch.length;
+      if (consecutiveEmpty >= 8 && allSeasons.length > 0) break;
+    } else {
+      consecutiveEmpty = 0;
+    }
   }
 
   return allSeasons
@@ -131,10 +141,12 @@ app.get('/api/players', async (req, res) => {
   if (BALLDONTLIE_KEY) {
     if (!q) return res.json([]);
     try {
-      const results = await searchPlayersBDL(q);
+      // Cache search results for 30 min to avoid hammering rate limits
+      const results = await cached(`bdl-search-${q}`, 30 * 60 * 1000, () => searchPlayersBDL(q));
       return res.json(results);
     } catch (e) {
-      return res.status(500).json({ error: 'Failed to fetch players' });
+      console.error('BDL search error:', e?.response?.status, e?.message);
+      return res.status(500).json({ error: 'Search temporarily unavailable. Please try again in a moment.' });
     }
   }
   try {
