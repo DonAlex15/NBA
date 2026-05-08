@@ -5,29 +5,18 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || 'd316ecfc6813e11b0cf142000b43f5bd';
-
-const NBA_HEADERS = {
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'x-nba-stats-origin': 'stats',
-  'x-nba-stats-token': 'true',
-  'Referer': 'https://www.nba.com/',
-  'Origin': 'https://www.nba.com',
-  'Host': 'stats.nba.com',
-  'Connection': 'keep-alive',
-  'Sec-Fetch-Dest': 'empty',
-  'Sec-Fetch-Mode': 'cors',
-  'Sec-Fetch-Site': 'same-site',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-};
+const RAPID_API_KEY = process.env.RAPID_API_KEY || '423069e61amshd134c57f27bb58bp12cf30jsndebb53995087';
+const RAPID_HOST = 'nba-api-free-data.p.rapidapi.com';
 
 function nbaGet(endpoint, params) {
-  const qs = new URLSearchParams(params).toString();
-  const target = encodeURIComponent(`https://stats.nba.com/stats/${endpoint}?${qs}`);
-  const scraperUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${target}`;
-  return axios.get(scraperUrl, { timeout: 60000 });
+  return axios.get(`https://${RAPID_HOST}/${endpoint}`, {
+    params,
+    headers: {
+      'X-RapidAPI-Key': RAPID_API_KEY,
+      'X-RapidAPI-Host': RAPID_HOST,
+    },
+    timeout: 30000,
+  });
 }
 
 // Simple in-memory cache
