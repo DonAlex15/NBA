@@ -36,7 +36,7 @@ function currentSeason() {
 }
 
 // ---- balldontlie.io fallback (used when BALLDONTLIE_KEY env var is set) ----
-const BALLDONTLIE_KEY = process.env.BALLDONTLIE_KEY;
+const BALLDONTLIE_KEY = null; // disabled — using NBA Stats API directly
 
 function bdlGet(path, params = {}) {
   return axios.get(`https://api.balldontlie.io/v1${path}`, {
