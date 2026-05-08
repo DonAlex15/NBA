@@ -24,14 +24,10 @@ const NBA_HEADERS = {
 };
 
 function nbaGet(endpoint, params) {
-  const url = `https://stats.nba.com/stats/${endpoint}`;
   const qs = new URLSearchParams(params).toString();
-  const target = `${url}?${qs}`;
-  return axios.get('http://api.scraperapi.com', {
-    params: { api_key: SCRAPER_API_KEY, url: target, keep_headers: 'true' },
-    headers: NBA_HEADERS,
-    timeout: 60000,
-  });
+  const target = encodeURIComponent(`https://stats.nba.com/stats/${endpoint}?${qs}`);
+  const scraperUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${target}`;
+  return axios.get(scraperUrl, { timeout: 60000 });
 }
 
 // Simple in-memory cache
