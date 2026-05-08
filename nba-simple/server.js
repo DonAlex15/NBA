@@ -27,7 +27,7 @@ function nbaGet(endpoint, params) {
   const url = `https://stats.nba.com/stats/${endpoint}`;
   const qs = new URLSearchParams(params).toString();
   const target = `${url}?${qs}`;
-  return axios.get('https://api.scraperapi.com', {
+  return axios.get('http://api.scraperapi.com', {
     params: { api_key: SCRAPER_API_KEY, url: target, keep_headers: 'true' },
     headers: NBA_HEADERS,
     timeout: 60000,
