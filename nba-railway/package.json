@@ -1,7 +1,7 @@
 {
-  "name": "nba-local",
+  "name": "nba-railway",
   "version": "1.0.0",
-  "description": "Local-only NBA stats app using stats.nba.com directly",
+  "description": "Railway deployment — reads from Supabase",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

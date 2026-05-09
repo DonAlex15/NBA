@@ -208,4 +208,4 @@ app.get('/api/mlb/career/pitching/:playerId', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`NBA Stats app running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`NBA Stats app (Supabase) running at http://localhost:${PORT}`));
