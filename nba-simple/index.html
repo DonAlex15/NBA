@@ -1162,6 +1162,24 @@
     fetchStandingsBackground(seasonsList);
   }
 
+  function resetBasketball() {
+    state[0] = null;
+    state[1] = null;
+    for (const idx of [0, 1]) {
+      const input = document.getElementById(`input-${idx}`);
+      if (input) input.value = '';
+      const dd = document.getElementById(`dd-${idx}`);
+      if (dd) { dd.innerHTML = ''; dd.classList.remove('open'); }
+      const sel = document.getElementById(`sel-${idx}`);
+      if (sel) { sel.innerHTML = ''; sel.classList.remove('name-winner', 'name-loser'); }
+      const stats = document.getElementById(`stats-${idx}`);
+      if (stats) stats.innerHTML = '';
+      const legend = document.getElementById(`legend-p${idx + 1}`);
+      if (legend) legend.textContent = '';
+    }
+    renderTable();
+  }
+
   function navigate(page) {
     const valid = ['home', 'basketball', 'baseball'];
     if (!valid.includes(page)) page = 'home';
@@ -1170,6 +1188,7 @@
     document.getElementById(`page-${page}`).classList.add('active');
     document.querySelector(`.nav-link[data-page="${page}"]`).classList.add('active');
     history.replaceState(null, '', `#${page}`);
+    if (page === 'basketball') resetBasketball();
   }
 
   window.addEventListener('hashchange', () => {

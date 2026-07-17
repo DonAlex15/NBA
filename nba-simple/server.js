@@ -9,6 +9,14 @@ const PLAYER_META = (() => {
   catch { return {}; }
 })();
 
+// Pre-fetched career stats for the historical (Basketball-Reference) legends.
+// Their careers never change, so they're stored to disk to avoid scraping BBRef.
+// Regenerate with `node fetchLegends.js`. Missing entries fall back to live scrape.
+const LEGENDS_STORE = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'legends.json'), 'utf8')); }
+  catch { return {}; }
+})();
+
 // Age as of Feb 1 of the season (NBA convention: e.g. "2003-04" → Feb 1 2004)
 function ageForSeason(season, birthDate) {
   if (!birthDate) return null;
@@ -68,13 +76,117 @@ const NBA_LEGENDS = [
   { id: '261', name: 'Kevin Garnett',      team: '', debutYear: 1995 },
   { id: '272', name: 'Manu Ginobili',      team: '', debutYear: 2002 },
   { id: '366', name: 'Allen Iverson',      team: '', debutYear: 1996 },
-  { id: '411', name: 'Michael Jordan',     team: '', debutYear: 1984 },
+  { id: '1035', name: 'Michael Jordan',    team: '', debutYear: 1984 },
   { id: '501', name: 'Karl Malone',        team: '', debutYear: 1985 },
   { id: '592', name: 'Steve Nash',         team: '', debutYear: 1996 },
   { id: '609', name: 'Dirk Nowitzki',      team: '', debutYear: 1998 },
   { id: '614', name: "Shaquille O'Neal",   team: '', debutYear: 1992 },
   { id: '640', name: 'Gary Payton',        team: '', debutYear: 1990 },
 ];
+
+// Historical greats whose full careers predate ESPN's data (ESPN has no NBA
+// data before ~1976). These are sourced from Basketball-Reference instead.
+// id is prefixed "bbr_" so the career endpoint routes them to the BBRef parser.
+const BBREF_LEGENDS = [
+  { id: 'bbr_abdulka01', name: 'Kareem Abdul-Jabbar' },
+  { id: 'bbr_chambwi01', name: 'Wilt Chamberlain' },
+  { id: 'bbr_russebi01', name: 'Bill Russell' },
+  { id: 'bbr_roberos01', name: 'Oscar Robertson' },
+  { id: 'bbr_westje01',  name: 'Jerry West' },
+  { id: 'bbr_johnsma02', name: 'Magic Johnson' },
+  { id: 'bbr_birdla01',  name: 'Larry Bird' },
+  { id: 'bbr_ervinju01', name: 'Julius Erving' },
+  { id: 'bbr_bayloel01', name: 'Elgin Baylor' },
+  { id: 'bbr_havlijo01', name: 'John Havlicek' },
+  { id: 'bbr_malonmo01', name: 'Moses Malone' },
+  { id: 'bbr_barryri01', name: 'Rick Barry' },
+  { id: 'bbr_gervige01', name: 'George Gervin' },
+  { id: 'bbr_thomais01', name: 'Isiah Thomas' },
+  { id: 'bbr_olajuha01', name: 'Hakeem Olajuwon' },
+];
+
+// Basketball-Reference uses a few team abbreviations that differ from the
+// scheme used by CHAMPIONS/MVPS in index.html. Map those to the app's scheme.
+const BBREF_TEAM_FIX = { PHO: 'PHX', WSB: 'WAS', CHH: 'CHA', NJN: 'BKN', SDC: 'LAC', NOH: 'NOP', KCK: 'SAC' };
+
+// Seasons to drop, keyed by BBRef id. Baylor retired 9 games into 1971-72
+// before the Lakers won the title, so that row falsely earns a championship.
+const BBREF_EXCLUDE = { bayloel01: new Set(['1971-72']) };
+
+async function buildBbrefCareer(bbrefId) {
+  const letter = bbrefId[0];
+  const r = await axios.get(
+    `https://www.basketball-reference.com/players/${letter}/${bbrefId}.html`,
+    { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' }, timeout: 20000 }
+  );
+  // BBRef hides some tables inside HTML comments; unwrap them before matching.
+  const html = String(r.data).replace(/<!--/g, '').replace(/-->/g, '');
+  const tblMatch = html.match(/<table[^>]*id="per_game_stats"[\s\S]*?<\/table>/)
+                || html.match(/<table[^>]*id="per_game"[\s\S]*?<\/table>/);
+  if (!tblMatch) return [];
+  const bodyMatch = tblMatch[0].match(/<tbody>([\s\S]*?)<\/tbody>/);
+  if (!bodyMatch) return [];
+
+  const cell = (row, stat) => {
+    const m = row.match(new RegExp('data-stat="' + stat + '"[^>]*>([\\s\\S]*?)</(?:td|th)>'));
+    if (!m) return '';
+    return m[1].replace(/<[^>]+>/g, '').trim();
+  };
+  const num = (row, stat) => { const v = parseFloat(cell(row, stat)); return Number.isNaN(v) ? 0 : v; };
+
+  // Group rows by season so multi-team ("2TM"/"3TM") seasons collapse to one.
+  const bySeason = {};
+  for (const rm of bodyMatch[1].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+    const row = rm[1];
+    const season = cell(row, 'year_id');
+    if (!/^\d{4}-\d{2}$/.test(season)) continue;
+    const teamRaw = cell(row, 'team_name_abbr') || cell(row, 'team_id');
+    const isCombined = /^\d+TM$/.test(teamRaw) || teamRaw === 'TOT';
+    (bySeason[season] = bySeason[season] || []).push({ row, teamRaw, isCombined, gp: num(row, 'games') });
+  }
+
+  const excluded = BBREF_EXCLUDE[bbrefId];
+  const seasons = [];
+  for (const season of Object.keys(bySeason)) {
+    if (excluded && excluded.has(season)) continue;
+    const parts = bySeason[season];
+    // Season-average stats come from the combined row if present, else the sole row.
+    const statRow = (parts.find(p => p.isCombined) || parts[0]).row;
+    // Team for display/championship uses the single team with the most games.
+    const teamParts = parts.filter(p => !p.isCombined);
+    const teamPick = (teamParts.length ? teamParts : parts).sort((a, b) => b.gp - a.gp)[0];
+    const teamRaw = teamPick.teamRaw;
+    const team = BBREF_TEAM_FIX[teamRaw] || teamRaw;
+    seasons.push({
+      season,
+      team,
+      team_id: null,
+      age:     parseInt(cell(statRow, 'age'), 10) || null,
+      gp:      num(statRow, 'games'),
+      gs:      num(statRow, 'games_started'),
+      min:     +num(statRow, 'mp_per_g').toFixed(1),
+      pts:     +num(statRow, 'pts_per_g').toFixed(1),
+      reb:     +num(statRow, 'trb_per_g').toFixed(1),
+      oreb:    +num(statRow, 'orb_per_g').toFixed(1),
+      dreb:    +num(statRow, 'drb_per_g').toFixed(1),
+      ast:     +num(statRow, 'ast_per_g').toFixed(1),
+      stl:     +num(statRow, 'stl_per_g').toFixed(1),
+      blk:     +num(statRow, 'blk_per_g').toFixed(1),
+      tov:     +num(statRow, 'tov_per_g').toFixed(1),
+      pf:      +num(statRow, 'pf_per_g').toFixed(1),
+      fgm:     +num(statRow, 'fg_per_g').toFixed(1),
+      fga:     +num(statRow, 'fga_per_g').toFixed(1),
+      fg_pct:  +num(statRow, 'fg_pct').toFixed(3),
+      fg3m:    +num(statRow, 'fg3_per_g').toFixed(1),
+      fg3a:    +num(statRow, 'fg3a_per_g').toFixed(1),
+      fg3_pct: +num(statRow, 'fg3_pct').toFixed(3),
+      ftm:     +num(statRow, 'ft_per_g').toFixed(1),
+      fta:     +num(statRow, 'fta_per_g').toFixed(1),
+      ft_pct:  +num(statRow, 'ft_pct').toFixed(3),
+    });
+  }
+  return seasons.sort((a, b) => a.season.localeCompare(b.season));
+}
 
 // Build full player list from ESPN athlete listing (runs once, cached 24h)
 async function buildPlayerList() {
@@ -124,14 +236,83 @@ async function buildPlayerList() {
   for (const legend of NBA_LEGENDS) {
     if (!ids.has(legend.id)) players.push(legend);
   }
+  // BBRef historical greats (keyed by name to avoid ESPN duplicates)
+  const names = new Set(players.map(p => p.name.toLowerCase()));
+  for (const legend of BBREF_LEGENDS) {
+    if (!names.has(legend.name.toLowerCase())) {
+      players.push({ id: legend.id, name: legend.name, team: '', debutYear: null });
+    }
+  }
 
   console.log(`Player cache built: ${players.length} players`);
   return players;
 }
 
+// ESPN teamId → abbreviation, matching the scheme used in CHAMPIONS (index.html)
+const ESPN_TEAM_ABBR = {
+  '1':'ATL','2':'BOS','3':'NOP','4':'CHI','5':'CLE','6':'DAL','7':'DEN','8':'DET',
+  '9':'GSW','10':'HOU','11':'IND','12':'LAC','13':'LAL','14':'MIA','15':'MIL',
+  '16':'MIN','17':'BKN','18':'NYK','19':'ORL','20':'PHI','21':'PHX','22':'POR',
+  '23':'SAC','24':'SAS','25':'OKC','26':'UTA','27':'WAS','28':'TOR','29':'MEM','30':'CHA',
+};
+
+// One request per player: { espnYear: teamAbbr } from ESPN's consolidated stats.
+// The per-season statistics endpoint omits team, so championship detection needs this.
+async function fetchTeamByYear(espnId) {
+  try {
+    const r = await espnGet(`https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${espnId}/stats`);
+    const avg = (r.data.categories || []).find(c => c.name === 'averages');
+    const gpIdx = (avg?.names || []).indexOf('gamesPlayed');
+    const byYear = {};
+    for (const st of (avg?.statistics || [])) {
+      const year = st.season?.year;
+      const abbr = ESPN_TEAM_ABBR[String(st.teamId)];
+      if (!year || !abbr) continue;
+      const gp = gpIdx >= 0 ? (parseFloat(st.stats?.[gpIdx]) || 0) : 0;
+      // For traded seasons keep the team where the player played the most games
+      if (!byYear[year] || gp > byYear[year].gp) byYear[year] = { abbr, gp };
+    }
+    const out = {};
+    for (const y in byYear) out[y] = byYear[y].abbr;
+    return out;
+  } catch { return {}; }
+}
+
+// Live ESPN search — catches retired players absent from the active-athletes
+// listing (e.g. Steve Francis, Tracy McGrady). uid "s:40~l:46~a:255": l:46 = NBA.
+async function espnSearchPlayers(q) {
+  try {
+    const r = await espnGet('https://site.web.api.espn.com/apis/search/v2', { query: q, limit: 20 });
+    const out = [];
+    const seen = new Set();
+    for (const group of (r.data.results || [])) {
+      if (group.type !== 'player') continue;
+      for (const c of (group.contents || [])) {
+        if (c.sport !== 'basketball') continue;
+        const m = /~l:46~a:(\d+)/.exec(c.uid || '');   // NBA league only
+        if (!m) continue;
+        const id = m[1];
+        if (seen.has(id)) continue;
+        seen.add(id);
+        out.push({ id, name: c.displayName || '', team: '', debutYear: null });
+      }
+    }
+    return out;
+  } catch { return []; }
+}
+
+// Fetch a single athlete's name + debut year (for retired players found via search)
+async function fetchAthleteMeta(espnId) {
+  try {
+    const r = await espnGet(`https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/athletes/${espnId}`);
+    return { id: String(r.data.id), name: r.data.fullName || r.data.displayName || '', debutYear: r.data.debutYear || null };
+  } catch { return null; }
+}
+
 // Fetch career season-by-season stats from ESPN
 async function buildCareerStats(espnId, debutYear, playerName) {
   const birthDate = playerName ? PLAYER_META[playerName] : null;
+  const teamByYear = await fetchTeamByYear(espnId);
   const curEspnYear = seasonToEspnStatsYear(currentSeason());
   // ESPN stats year = ending year of season; debutYear 2003 → first ESPN year = 2004
   const startYear = debutYear ? debutYear + 1 : 2002;
@@ -154,7 +335,7 @@ async function buildCareerStats(espnId, debutYear, playerName) {
             const seasonStr = `${year - 1}-${String(year).slice(2)}`;
             return {
               season:   seasonStr,
-              team:     '',
+              team:     teamByYear[year] || '',
               team_id:  null,
               age:      ageForSeason(seasonStr, birthDate),
               gp,
@@ -186,7 +367,32 @@ async function buildCareerStats(espnId, debutYear, playerName) {
     seasons.push(...results.filter(Boolean));
   }
 
-  return seasons.sort((a, b) => a.season.localeCompare(b.season));
+  seasons.sort((a, b) => a.season.localeCompare(b.season));
+
+  // Fill in-career gaps (e.g. retirement years) as blank rows so every
+  // season/age between the first and last played year is represented.
+  if (seasons.length > 1) {
+    const playedYears = new Set(seasons.map(s => Number(s.season.slice(0, 4)) + 1));
+    const firstYear = Math.min(...playedYears);
+    const lastYear  = Math.max(...playedYears);
+    for (let year = firstYear; year <= lastYear; year++) {
+      if (playedYears.has(year)) continue;
+      const seasonStr = `${year - 1}-${String(year).slice(2)}`;
+      seasons.push({
+        season:  seasonStr,
+        team:    '',
+        team_id: null,
+        age:     ageForSeason(seasonStr, birthDate),
+        gp: null, gs: null, min: null, pts: null, reb: null, oreb: null,
+        dreb: null, ast: null, stl: null, blk: null, tov: null, pf: null,
+        fgm: null, fga: null, fg_pct: null, fg3m: null, fg3a: null,
+        fg3_pct: null, ftm: null, fta: null, ft_pct: null,
+      });
+    }
+    seasons.sort((a, b) => a.season.localeCompare(b.season));
+  }
+
+  return seasons;
 }
 
 // Serve UI
@@ -208,7 +414,22 @@ app.get('/api/players', async (req, res) => {
       return 2;
     };
     filtered.sort((a, b) => rank(a.name) - rank(b.name));
-    res.json(filtered.slice(0, 10));
+
+    // If the local list is thin, ask ESPN's search API for retired/non-legend
+    // players (e.g. Steve Francis, Tracy McGrady) and append any new hits.
+    const combined = filtered.slice();
+    if (combined.length < 10) {
+      const seenIds = new Set(combined.map(p => p.id));
+      const seenNames = new Set(combined.map(p => p.name.toLowerCase()));
+      const extra = await cached(`espn-search-${q}`, 24 * 3600 * 1000, () => espnSearchPlayers(q));
+      for (const p of extra) {
+        if (seenIds.has(p.id) || seenNames.has(p.name.toLowerCase())) continue;
+        seenIds.add(p.id);
+        seenNames.add(p.name.toLowerCase());
+        combined.push(p);
+      }
+    }
+    res.json(combined.slice(0, 10));
   } catch (e) {
     console.error('Players error:', e.message);
     res.status(500).json({ error: 'Failed to fetch players' });
@@ -219,15 +440,17 @@ app.get('/api/players', async (req, res) => {
 app.get('/api/career/:playerId', async (req, res) => {
   const { playerId } = req.params;
   try {
-    const players = await cached('all-players', 24 * 3600 * 1000, buildPlayerList);
-    const player = players.find(p => p.id === playerId);
-    const debutYear = player?.debutYear || null;
-
-    const seasons = await cached(
-      `career-${playerId}`,
-      24 * 3600 * 1000,
-      () => buildCareerStats(playerId, debutYear, player?.name)
-    );
+    const seasons = playerId.startsWith('bbr_')
+      ? (LEGENDS_STORE[playerId]
+          || await cached(`career-${playerId}`, 24 * 3600 * 1000, () => buildBbrefCareer(playerId.slice(4))))
+      : await cached(`career-${playerId}`, 24 * 3600 * 1000, async () => {
+          const players = await cached('all-players', 24 * 3600 * 1000, buildPlayerList);
+          let player = players.find(p => p.id === playerId);
+          // ESPN-searched players aren't in the cached list, so fetch their
+          // athlete meta on demand to get the debut year (full career span).
+          if (!player) player = await fetchAthleteMeta(playerId);
+          return buildCareerStats(playerId, player?.debutYear || null, player?.name);
+        });
     res.json(seasons);
   } catch (e) {
     console.error('Career error:', e.message);
@@ -400,11 +623,16 @@ app.get('/api/mlb/career/pitching/:playerId', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`NBA Stats app running at http://localhost:${PORT}`);
-  console.log(`playerMeta loaded: ${Object.keys(PLAYER_META).length} birthdates`);
-  // Pre-warm player cache in background
-  cached('all-players', 24 * 3600 * 1000, buildPlayerList).catch(e =>
-    console.error('Player cache warmup failed:', e.message)
-  );
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`NBA Stats app running at http://localhost:${PORT}`);
+    console.log(`playerMeta loaded: ${Object.keys(PLAYER_META).length} birthdates`);
+    console.log(`legends loaded: ${Object.keys(LEGENDS_STORE).length} stored careers`);
+    // Pre-warm player cache in background
+    cached('all-players', 24 * 3600 * 1000, buildPlayerList).catch(e =>
+      console.error('Player cache warmup failed:', e.message)
+    );
+  });
+}
+
+module.exports = { buildBbrefCareer, BBREF_LEGENDS };
